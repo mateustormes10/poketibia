@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+    #container { display: flex; font-family: sans-serif; }
+#sprite-panel { width: 340px; margin-right: 10px; }
+#sprite-nav { display: flex; justify-content: space-between; margin-bottom: 5px; }
+#sprite-list { width: 100%; height: 600px; overflow-y: auto; display: flex; flex-wrap: wrap; border: 1px solid #aaa; }
+#sprite-list img { width: 32px; height: 32px; cursor: pointer; margin: 2px; border: 1px solid #ccc; }
+.selected { border: 2px solid red !important; }
+#map-panel { flex-grow: 1; }
+canvas { border: 1px solid black; display: block; margin-top: 5px; }
+.cursor { outline: 2px solid yellow; }
+
+</style>
+<title>Map Editor Avançado</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="container">
+  <div id="sprite-panel">
+    <div id="sprite-nav">
+      <button id="prevSprites">&uarr;</button>
+      <button id="nextSprites">&darr;</button>
+    </div>
+    <div id="sprite-list"></div>
+  </div>
+
+  <div id="map-panel">
+    <div>
+        Walkable: <input type="checkbox" id="walkable" checked>
+        <label>
+            <input type="checkbox" id="spawn"> Spawn
+        </label>
+        <input type="text" id="spawnName" placeholder="Nome do Pokémon" disabled>
+        <button id="saveBtn">Salvar Map.txt</button>
+    </div>
+    <canvas id="mapCanvas" width="1600" height="1600"></canvas>
+  </div>
+</div>
+
+<script src="editor.js"></script>
+</body>
+</html>
