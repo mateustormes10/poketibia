@@ -286,56 +286,139 @@ export default class Game {
 
         console.log(result);
     }
-
     updateFollower() {
         if (!this.activeFollower) return;
 
         const fx = this.activeFollower.x;
         const fy = this.activeFollower.y;
+        const px = this.player.x;
+        const py = this.player.y;
+
+        const speed = this.activeFollower.speed ?? 0.07;
+
+        if (this._attackingWild && this.wildMons.includes(this._attackingWild)) {
+            // Atacando Pokémon selvagem
+            const dx = this._attackingWild.x - fx;
+            const dy = this._attackingWild.y - fy;
+            const distance = Math.hypot(dx, dy);
+
+            // Se próximo, aplica dano
+            if (distance <= 1.2) {
+                const attackBase = this.activeFollower.attackBase || 1;
+                const defenseBase = this._attackingWild.deffenseBase || 0;
+                const damage = Math.max(1, attackBase - defenseBase);
+                this._attackingWild.hp -= damage;
+
+                // Se morrer, desativa ataque
+                if (this._attackingWild.hp <= 0) {
+                    const idx = this.wildMons.indexOf(this._attackingWild);
+                    if (idx >= 0) this.wildMons.splice(idx, 1);
+                    this._attackingWild = null;
+                }
+                return;
+            }
+
+            // Movimenta em direção ao alvo
+            const nx = fx + (dx / distance) * speed;
+            const ny = fy + (dy / distance) * speed;
+            const tile = this.map.getTile(Math.floor(nx), Math.floor(ny));
+            if (tile && tile.walkable !== false) {
+                this.activeFollower.x = nx;
+                this.activeFollower.y = ny;
+                // define direção
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    this.activeFollower.direction = dx > 0 ? "right" : "left";
+                } else {
+                    this.activeFollower.direction = dy > 0 ? "down" : "up";
+                }
+            }
+        } else {
+            // Segue o player normalmente
+            const dx = px - fx;
+            const dy = py - fy;
+            const distance = Math.hypot(dx, dy);
+            if (distance > 2) {
+                const nx = fx + (dx / distance) * speed;
+                const ny = fy + (dy / distance) * speed;
+                const tile = this.map.getTile(Math.floor(nx), Math.floor(ny));
+                if (tile && tile.walkable !== false) {
+                    this.activeFollower.x = nx;
+                    this.activeFollower.y = ny;
+                    if (Math.abs(dx) > Math.abs(dy)) {
+                        this.activeFollower.direction = dx > 0 ? "right" : "left";
+                    } else {
+                        this.activeFollower.direction = dy > 0 ? "down" : "up";
+                    }
+                }
+            }
+        }
+
+        this.activeFollower.updateAnimation(0.016);
+    }
+
+    createNearbyMonMenu() {
+        let menu = document.getElementById("nearbyMonMenu");
+        if (!menu) {
+            menu = document.createElement("div");
+            menu.id = "nearbyMonMenu";
+            menu.style.position = "absolute";
+            menu.style.top = "10px";
+            menu.style.right = "10px";
+            menu.style.background = "rgba(0,0,0,0.7)";
+            menu.style.padding = "10px";
+            menu.style.color = "white";
+            menu.style.fontFamily = "sans-serif";
+            menu.style.width = "180px";
+            document.body.appendChild(menu);
+        }
+        this._nearbyMonMenuEl = menu;
+    }
+
+    updateNearbyMonMenuUI() {
+        if (!this._nearbyMonMenuEl) this.createNearbyMonMenu();
+        const menu = this._nearbyMonMenuEl;
+        menu.innerHTML = "";
 
         const px = this.player.x;
         const py = this.player.y;
 
-        const dx = px - fx;
-        const dy = py - fy;
+        // Lista pokémons a até 20 tiles
+        const nearby = this.wildMons.filter(m => {
+            const dist = Math.hypot(m.x - px, m.y - py);
+            return dist <= 20;
+        });
 
-        const distance = Math.hypot(dx, dy);
-
-        // Apenas segue se estiver a mais de 2 tiles de distância
-        if (distance < 2) return;
-
-        const speed = this.activeFollower.speed ?? 0.07;
-
-        const nx = fx + (dx / distance) * speed;
-        const ny = fy + (dy / distance) * speed;
-
-        const tile = this.map.getTile(Math.floor(nx), Math.floor(ny));
-        if (!tile || tile.walkable === false) return;
-
-        // Determinar direção
-        if (Math.abs(dx) > Math.abs(dy)) {
-            // Movimento horizontal
-            if (dx > 0) this.activeFollower.direction = "right";
-            else        this.activeFollower.direction = "left";
-        } else {
-            // Movimento vertical
-            if (dy > 0) this.activeFollower.direction = "down";
-            else        this.activeFollower.direction = "up";
+        if (nearby.length === 0) {
+            const msg = document.createElement("div");
+            msg.textContent = "Nenhum Pokémon próximo";
+            menu.appendChild(msg);
+            return;
         }
 
-        // Atualiza posição
-        this.activeFollower.x = nx;
-        this.activeFollower.y = ny;
+        for (const mon of nearby) {
+            const btn = document.createElement("div");
+            btn.style.padding = "4px";
+            btn.style.marginBottom = "4px";
+            btn.style.cursor = "pointer";
+            btn.style.border = "1px solid #999";
+            btn.textContent = `${mon.name} (HP: ${Math.floor(mon.hp)})`;
 
-        // Atualiza animação do seguidor
-        this.activeFollower.updateAnimation(0.016);
+            btn.oncontextmenu = (e) => {
+                e.preventDefault();
+                // Seleciona para atacar
+                this._attackingWild = mon;
+            };
+
+            menu.appendChild(btn);
+        }
     }
-
 
 
     loop() {
         requestAnimationFrame(() => this.loop());
         this.updateFollower();
+        this.updateNearbyMonMenuUI();
+
 
         // delta ms aproximado entre frames
         let nowTs = performance.now();

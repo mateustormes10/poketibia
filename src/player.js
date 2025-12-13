@@ -90,12 +90,13 @@ export default class Player extends Entity {
 
         // Atualiza animação em movimento
         if (moved) {
-            // deltaTime aproximado por frame (pode receber parametro se desejar)
-            this.updateAnimation(this.animInterval); // chamamos com valor >= animInterval para forçar primeiro frame
+            // Troca de grupo a cada movimento
+            this.currentGroup = (this.currentGroup + 1) % this.spriteList[this.direction].length;
+            const group = this._getCurrentGroup();
+            if (group && group[0]) this.spriteId = group[0];
         } else {
-            // reset visual para grupo 0 se quiser que pare no grupo 0
+            // Para parado
             this.currentGroup = 0;
-            // atualiza spriteId referencia
             const group = this._getCurrentGroup();
             if (group && group[0]) this.spriteId = group[0];
         }

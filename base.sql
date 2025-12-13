@@ -358,3 +358,123 @@ CREATE TABLE tile_items (
         REFERENCES tiles(id, world_id)
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE pokemons (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL UNIQUE,
+
+    hp INT NOT NULL,
+    max_hp INT NOT NULL,
+    max_mana INT NOT NULL,
+
+    aggressive TINYINT(1) NOT NULL DEFAULT 0,
+    speed DECIMAL(5,3) NOT NULL,
+
+    attack_base INT NOT NULL,
+    defense_base INT NOT NULL,
+
+    elements JSON NOT NULL,
+    weak_elements JSON NOT NULL,
+    strong_elements JSON NOT NULL,
+    skills JSON NOT NULL,
+
+    sprite_up JSON NOT NULL,
+    sprite_down JSON NOT NULL,
+    sprite_left JSON NOT NULL,
+    sprite_right JSON NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO pokemons (
+    name, hp, max_hp, max_mana, aggressive, speed,
+    attack_base, defense_base,
+    elements, weak_elements, strong_elements, skills,
+    sprite_up, sprite_down, sprite_left, sprite_right
+) VALUES (
+    'Pikachu',
+    120, 120, 80, 0, 0.07,
+    1, 1,
+    JSON_ARRAY('electric'),
+    JSON_ARRAY('stone'),
+    JSON_ARRAY('water'),
+    JSON_ARRAY('Choque do Trovão', 'Cauda de Ferro'),
+    JSON_ARRAY(39664,39668,39672),
+    JSON_ARRAY(39666,39670,39674),
+    JSON_ARRAY(39667,39671,39675),
+    JSON_ARRAY(39665,39669,39673)
+);
+INSERT INTO pokemons (
+    name,
+    hp,
+    max_hp,
+    max_mana,
+    aggressive,
+    speed,
+    attack_base,
+    defense_base,
+    elements,
+    weak_elements,
+    strong_elements,
+    skills,
+    sprite_up,
+    sprite_down,
+    sprite_left,
+    sprite_right
+) VALUES (
+    'Staryu',
+    140,
+    140,
+    60,
+    1,
+    0.06,
+    1,
+    1,
+    JSON_ARRAY('water'),
+    JSON_ARRAY('eletric'),
+    JSON_ARRAY('fire'),
+    JSON_ARRAY('Brasas', 'Arranhão', 'Fogaréu'),
+    JSON_ARRAY(33648, 33652, 33656),
+    JSON_ARRAY(33650, 33654, 33658),
+    JSON_ARRAY(33651, 33655, 33659),
+    JSON_ARRAY(33649, 33653, 33657)
+);
+
+CREATE TABLE wild_pokemons (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    pokemon_id INT NOT NULL,
+
+    x INT NOT NULL,
+    y INT NOT NULL,
+    z INT NOT NULL,
+
+    world_id INT NOT NULL DEFAULT 0,
+
+    respawn_time INT NOT NULL DEFAULT 0,
+    alive TINYINT(1) NOT NULL DEFAULT 1,
+
+    FOREIGN KEY (pokemon_id) REFERENCES pokemons(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE player_pokemons (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    player_id INT NOT NULL,
+    pokemon_id INT NOT NULL,
+
+    nickname VARCHAR(50) DEFAULT NULL,
+
+    level INT NOT NULL DEFAULT 1,
+    experience BIGINT NOT NULL DEFAULT 0,
+
+    current_hp INT NOT NULL,
+    current_mana INT NOT NULL,
+
+    created_at INT NOT NULL DEFAULT UNIX_TIMESTAMP(),
+
+    FOREIGN KEY (player_id) REFERENCES players(id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (pokemon_id) REFERENCES pokemons(id)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
