@@ -34,8 +34,8 @@ export default class Player extends Entity {
         this.direction = "down";         // direção atual
         this.currentGroup = 0;           // índice do grupo atual dentro de spriteList[direction]
         this.animTimer = 0;              // acumulador de tempo para troca de grupo
-        this.animInterval = 1;         // tempo por grupo em segundos
-
+        this.animInterval = 0.15;         // tempo por grupo em segundos
+        this.moving = false;
         // usado apenas por compatibilidade (opcional)
         this.spriteId = this.spriteList.down[0][0];
     }
@@ -89,13 +89,9 @@ export default class Player extends Entity {
         }
 
         // Atualiza animação em movimento
-        if (moved) {
-            // Troca de grupo a cada movimento
-            this.currentGroup = (this.currentGroup + 1) % this.spriteList[this.direction].length;
-            const group = this._getCurrentGroup();
-            if (group && group[0]) this.spriteId = group[0];
-        } else {
-            // Para parado
+        this.moving = moved;
+
+        if (!moved) {
             this.currentGroup = 0;
             const group = this._getCurrentGroup();
             if (group && group[0]) this.spriteId = group[0];
@@ -103,9 +99,12 @@ export default class Player extends Entity {
     }
 
     // Atualiza o grupo (troca de conjunto 3-imagens) — deltaTime em segundos
-    updateAnimation(deltaTime = 1) {
+    updateAnimation(deltaTime) {
+        if (!this.moving) return;
+
         this.animTimer += deltaTime;
         if (this.animTimer < this.animInterval) return;
+
         this.animTimer = 0;
 
         const groups = this.spriteList[this.direction];
@@ -113,10 +112,10 @@ export default class Player extends Entity {
 
         this.currentGroup = (this.currentGroup + 1) % groups.length;
 
-        // atualiza spriteId de referência (primeira parte do grupo)
         const group = this._getCurrentGroup();
         if (group && group[0]) this.spriteId = group[0];
     }
+
 
     _getCurrentGroup() {
         const groups = this.spriteList[this.direction];

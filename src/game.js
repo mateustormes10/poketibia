@@ -12,7 +12,7 @@ export default class Game {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
 
-        this.tileSize = 48;
+        this.tileSize = 64;
         this.updateViewDimensions();
 
         this.mapSize = 500;
@@ -483,6 +483,8 @@ export default class Game {
         
         // atualiza efeitos de skills
         this.map.updateEffects(deltaMs);
+        this.player.updateAnimation(deltaMs / 1000);
+
 
         // tick cooldowns do follower (se existir)
         if (this.activeFollower) this.activeFollower.tickCooldowns(deltaMs);
