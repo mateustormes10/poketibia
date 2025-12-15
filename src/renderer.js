@@ -8,10 +8,8 @@ export default class Renderer {
         this.viewHeight = viewHeight;
     }
 
-    draw(map, player, entities, follower, cameraX, cameraY) {
+    draw(map, player, entities, follower,inventory,  cameraX, cameraY) {
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
-
-        
 
         for (let vy = 0; vy < this.viewHeight; vy++) {
             for (let vx = 0; vx < this.viewWidth; vx++) {
@@ -151,11 +149,43 @@ export default class Renderer {
                 }
             }
         }
-
-
-
        
         this._drawPlayerComposed(player);
+        this.drawInventory(inventory);
+    }
+
+    drawInventory(inventory) {
+        if (!inventory.visible) return;
+
+        const slotSize = 48;
+        const startX = (this.ctx.canvas.width - inventory.cols * slotSize) / 2;
+        const startY = (this.ctx.canvas.height - inventory.rows * slotSize) / 2;
+
+        // fundo
+        this.ctx.fillStyle = "rgba(0,0,0,0.8)";
+        this.ctx.fillRect(
+            startX - 12,
+            startY - 12,
+            inventory.cols * slotSize + 24,
+            inventory.rows * slotSize + 24
+        );
+
+        // slots
+        for (let i = 0; i < inventory.slots.length; i++) {
+            const x = i % inventory.cols;
+            const y = Math.floor(i / inventory.cols);
+
+            const px = startX + x * slotSize;
+            const py = startY + y * slotSize;
+
+            this.ctx.strokeStyle = "#6b4a2b";
+            this.ctx.strokeRect(px, py, slotSize, slotSize);
+
+            const item = inventory.slots[i];
+            if (item) {
+                this.drawSprite(item.sprite, px + 8, py + 8);
+            }
+        }
     }
 
     // desenha o player composto no centro da view (3 partes simultâneas)

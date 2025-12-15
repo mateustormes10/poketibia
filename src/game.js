@@ -4,6 +4,7 @@ import Player from "./player.js";
 import Input from "./input.js";
 import Pokemon from "./pokemon.js";
 import SkillEffect from "./SkillEffect.js";
+import Inventory from "./inventory/Inventory.js";
 
 import { SkillDatabase } from "./SkillDatabase.js";
 export default class Game {
@@ -27,6 +28,7 @@ export default class Game {
             { name: "Staryu", spriteId: 50001 },
             { name: "Pikachu", spriteId: 50020 }
         ];
+        this.inventory = new Inventory(8, 4);
 
         this.activeFollower = null;
 
@@ -34,7 +36,8 @@ export default class Game {
         this.createPokemonMenu();
 
         this.wildMons = [];
-        this.input = new Input();
+        this.input = new Input(this.canvas);
+
 
         // Posição da câmera, inicialmente igual à do player
         this.cameraX = this.player.x;
@@ -435,12 +438,32 @@ export default class Game {
         }
     }
 
+    handleInventoryInput() {
+        const m = this.input.mouse;
+
+        if (m.released) {
+            this.inventory.handleClick(m.x, m.y);
+        }
+    }
 
     loop() {
         requestAnimationFrame(() => this.loop());
         this.updateFollower();
         this.updateNearbyMonMenuUI();
 
+        if (this.input.isDown("i") && !this._invPressed) {
+            this.inventory.toggle();
+            this._invPressed = true;
+        }
+
+
+        if (!this.input.isDown("i")) {
+            this._invPressed = false;
+        }
+
+        if (this.inventory.visible) {
+            this.handleInventoryInput();
+        }
 
 
         // delta ms aproximado entre frames
@@ -494,6 +517,6 @@ export default class Game {
 
 
         // Renderização com base na posição da câmera
-        this.renderer.draw(this.map, this.player, this.wildMons,this.activeFollower, this.cameraX, this.cameraY);
+        this.renderer.draw(this.map, this.player, this.wildMons,this.activeFollower,this.inventory, this.cameraX, this.cameraY);
     }
 }
