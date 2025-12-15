@@ -30,7 +30,7 @@ export default class Renderer {
                         const sprite = Sprites.get(spriteId);
                         
                         if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-                            this.ctx.drawImage(sprite, screenX, screenY);
+                            this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
                         }
                     }
                 }
@@ -74,7 +74,7 @@ export default class Renderer {
                 this.ctx.fillRect(sx, sy - 4, hpWidth, barHeight);
             }
 
-            this.ctx.drawImage(pokemonSprite, sx, sy);
+            this.ctx.drawImage(pokemonSprite, sx, sy, this.tileSize, this.tileSize);
         }
 
         // Render Pokémon seguidor (se existir)
@@ -113,7 +113,7 @@ export default class Renderer {
                     this.ctx.fillStyle = "red";
                     this.ctx.fillRect(fx, fy - 4, hpWidth, barHeight);
                 }
-                this.ctx.drawImage(followerSprite, fx, fy);
+                this.ctx.drawImage(followerSprite, fx, fy, this.tileSize, this.tileSize);
             }
         }
 
@@ -145,7 +145,7 @@ export default class Renderer {
                 const sy = (fx.y - cameraY) * this.tileSize + FX_OFFSET_Y;
 
                 if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-                    this.ctx.drawImage(sprite, sx, sy);
+                    this.ctx.drawImage(sprite, sx, sy, this.tileSize, this.tileSize);
                 }
             }
         }
@@ -201,7 +201,7 @@ export default class Renderer {
         if (!parts || parts.length === 0) {
             // fallback: desenha spriteId simples
             const spr = Sprites.get(player.spriteId);
-            if (spr && spr.complete) this.ctx.drawImage(spr, centerX, centerY);
+            if (spr && spr.complete) this.ctx.drawImage(spr, centerX, centerY, this.tileSize, this.tileSize);
             return;
         }
 
@@ -210,7 +210,7 @@ export default class Renderer {
         if (parts[1]) {
             const imgL = Sprites.get(parts[1]);
             if (imgL && imgL.complete) {
-                this.ctx.drawImage(imgL, centerX - this.tileSize, centerY);
+                this.ctx.drawImage(imgL, centerX - this.tileSize, centerY, this.tileSize, this.tileSize);
             }
         }
 
@@ -218,7 +218,7 @@ export default class Renderer {
         if (parts[2]) {
             const imgT = Sprites.get(parts[2]);
             if (imgT && imgT.complete) {
-                this.ctx.drawImage(imgT, centerX, centerY - this.tileSize);
+                this.ctx.drawImage(imgT, centerX, centerY - this.tileSize, this.tileSize, this.tileSize);
             }
         }
 
@@ -240,7 +240,7 @@ export default class Renderer {
         if (parts[0]) {
             const imgC = Sprites.get(parts[0]);
             if (imgC && imgC.complete) {
-                this.ctx.drawImage(imgC, centerX, centerY);
+                this.ctx.drawImage(imgC, centerX, centerY, this.tileSize, this.tileSize);
             }
         }
     }

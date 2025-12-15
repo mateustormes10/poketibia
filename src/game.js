@@ -12,9 +12,8 @@ export default class Game {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
 
-        this.tileSize = 32;
-        this.viewWidth  = Math.ceil(this.canvas.width  / this.tileSize);
-        this.viewHeight = Math.ceil(this.canvas.height / this.tileSize);
+        this.tileSize = 48;
+        this.updateViewDimensions();
 
         this.mapSize = 500;
 
@@ -42,6 +41,15 @@ export default class Game {
         // Posição da câmera, inicialmente igual à do player
         this.cameraX = this.player.x;
         this.cameraY = this.player.y;
+    }
+
+    // Método para atualizar a largura e altura da visualização com base no tamanho do canvas
+    updateViewDimensions() {
+        this.viewWidth = Math.ceil(this.canvas.width / this.tileSize);
+        this.viewHeight = Math.ceil(this.canvas.height / this.tileSize);
+
+        // Recriar o renderer após o redimensionamento
+        this.renderer = new Renderer(this.ctx, this.tileSize, this.viewWidth, this.viewHeight);
     }
 
     createPokemonMenu() {
