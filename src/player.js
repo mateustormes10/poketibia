@@ -40,7 +40,7 @@ export default class Player extends Entity {
         this.spriteId = this.spriteList.down[0][0];
     }
 
-    update(input, map) {
+    update(input, map, entities, follower) {
         let moved = false;
 
         let nx = this.x;

@@ -3,6 +3,8 @@ import MapLoader from "./map.js";
 import Player from "./player.js";
 import Input from "./input.js";
 import Pokemon from "./pokemon.js";
+import SkillEffect from "./SkillEffect.js";
+
 import { SkillDatabase } from "./SkillDatabase.js";
 export default class Game {
     constructor(canvas) {
@@ -247,7 +249,20 @@ export default class Game {
             console.log("Nenhum alvo na área da skill");
         }
 
-        // executa a skill (Skill.execute retorna resultados)
+        // =====================================
+        // CRIA EFEITOS VISUAIS DA SKILL
+        // =====================================
+        const tiles = skill.getAffectedTiles(centerX, centerY);
+
+        for (const t of tiles) {
+            this.map.activeEffects.push(
+                new SkillEffect(t.x, t.y, skill)
+            );
+        }
+
+        // =====================================
+        // EXECUTA A SKILL (DANO / HEAL / BUFF)
+        // =====================================
         const results = skill.execute(follower, targets);
 
         // aplica custo de mana
@@ -262,12 +277,19 @@ export default class Game {
 
         // Se algum alvo morreu, marque e trate (exemplo simples)
         for (const r of results) {
-            if (r.type === "damage" && r.target && r.target.hp <= 0) {
+            if (
+                r.type === "damage" &&
+                r.target &&
+                Number.isFinite(r.target.hp) &&
+                r.target.hp <= 0
+            ) {
+                r.target.hp = 0;
                 r.target.alive = false;
-                // remove do array wildMons
+
                 const idx = this.wildMons.indexOf(r.target);
                 if (idx >= 0) this.wildMons.splice(idx, 1);
             }
+
         }
 
         // atualiza UI
@@ -420,11 +442,16 @@ export default class Game {
         this.updateNearbyMonMenuUI();
 
 
+
         // delta ms aproximado entre frames
         let nowTs = performance.now();
         this._lastLoopTime = this._lastLoopTime || nowTs;
         const deltaMs = Math.min(200, nowTs - this._lastLoopTime);
         this._lastLoopTime = nowTs;
+
+        
+        // atualiza efeitos de skills
+        this.map.updateEffects(deltaMs);
 
         // tick cooldowns do follower (se existir)
         if (this.activeFollower) this.activeFollower.tickCooldowns(deltaMs);

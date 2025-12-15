@@ -4,6 +4,9 @@ export default class MapLoader {
         this.grid = Array.from({ length: size }, () =>
             Array.from({ length: size }, () => null)
         );
+
+         // 🔥 efeitos ativos de skills (SkillEffect)
+        this.activeEffects = [];
     }
 
     async load(path) {
@@ -90,5 +93,28 @@ export default class MapLoader {
     getTile(x, y) {
         if (x < 0 || y < 0 || x >= this.size || y >= this.size) return null;
         return this.grid[y][x];
+    }
+
+    // =========================================================
+    // 🔥 SISTEMA DE EFEITOS DE SKILL
+    // =========================================================
+
+    updateEffects(deltaMs) {
+        for (let fx of this.activeEffects) {
+            fx.update(deltaMs);
+        }
+
+        // remove efeitos finalizados
+        this.activeEffects = this.activeEffects.filter(fx => !fx.finished);
+    }
+
+    // retorna apenas efeitos visíveis na câmera
+    getEffectsInView(camX, camY, viewW, viewH) {
+        return this.activeEffects.filter(fx =>
+            fx.x >= camX &&
+            fx.y >= camY &&
+            fx.x < camX + viewW &&
+            fx.y < camY + viewH
+        );
     }
 }

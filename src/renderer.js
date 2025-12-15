@@ -119,6 +119,40 @@ export default class Renderer {
             }
         }
 
+        // ============================================
+        // RENDERIZA EFEITOS DE SKILL (AOE, MAGIAS, ETC)
+        // ============================================
+        if (map.activeEffects && map.activeEffects.length > 0) {
+            for (let fx of map.activeEffects) {
+
+                // verifica se está dentro da câmera
+                if (
+                    fx.x < cameraX ||
+                    fx.y < cameraY ||
+                    fx.x >= cameraX + this.viewWidth ||
+                    fx.y >= cameraY + this.viewHeight
+                ) continue;
+
+                const spriteId = fx.getSprite();
+                const sprite = Sprites.get(spriteId);
+
+                if (!sprite || !sprite.complete) continue;
+
+                const FX_OFFSET_X = 0;
+                const FX_OFFSET_Y = this.tileSize * 0.6; // ajuste fino aqui
+                
+
+
+                const sx = (fx.x - cameraX) * this.tileSize + FX_OFFSET_X;
+                const sy = (fx.y - cameraY) * this.tileSize + FX_OFFSET_Y;
+
+                if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+                    this.ctx.drawImage(sprite, sx, sy);
+                }
+            }
+        }
+
+
 
        
         this._drawPlayerComposed(player);

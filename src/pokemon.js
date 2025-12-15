@@ -1,5 +1,8 @@
 import Entity from "./entity.js";
 import { PokemonDatabase } from "./listPokemon.js";
+import { SkillDatabase } from "./SkillDatabase.js";
+import SkillEffect from "./SkillEffect.js";
+
 
 export default class Pokemon extends Entity {
     constructor(name, x, y) {
@@ -60,6 +63,36 @@ export default class Pokemon extends Entity {
     canUseSkill(skillName) {
         return (this.skillCooldowns[skillName] || 0) === 0 && (this.mana || 0) >= (SkillDatabase[skillName]?.manaCost || 0);
     }
+
+    useSkill(skillName, map, entities) {
+        const skill = SkillDatabase[skillName];
+        if (!skill) return;
+        if (!this.canUseSkill(skillName)) return;
+
+        this.mana -= skill.manaCost;
+        this.setSkillCooldown(skillName, 1000);
+
+        const cx = Math.floor(this.x);
+        const cy = Math.floor(this.y);
+
+        // Tiles afetados
+        const tiles = skill.getAffectedTiles(cx, cy);
+
+        // Aplica efeito visual
+        for (const t of tiles) {
+            map.activeEffects.push(
+                new SkillEffect(t.x, t.y, skill)
+            );
+        }
+
+        // Aplica dano
+        const targets = entities.filter(e =>
+            tiles.some(t => Math.floor(e.x) === t.x && Math.floor(e.y) === t.y)
+        );
+
+        skill.execute(this, targets);
+    }
+
 
     // setar cooldown (em ms)
     setSkillCooldown(skillName, ms) {

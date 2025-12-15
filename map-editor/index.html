@@ -24,8 +24,34 @@ canvas { border: 1px solid black; display: block; margin-top: 5px; }
       <button id="prevSprites">&uarr;</button>
       <button id="nextSprites">&darr;</button>
     </div>
+    <!-- Input de pesquisa -->
+    <input type="text" id="spriteSearch" placeholder="Pesquisar sprite por ID">
+      <!-- Input de pesquisa por grupo de 250 -->
+    <input type="number" id="spriteGroupSearch" placeholder="Pesquisar grupo (1,2,3...)" min="1">
+
+    <!-- Botão para desselecionar -->
+    <button id="deselectSprite">Deselecionar sprite</button>
+    <label for="brushSize">Tamanho do bloco:</label>
+    
+
     <div id="sprite-list"></div>
+    <select id="brushSize">
+      <option value="1">1x1</option>
+      <option value="3">3x3</option>
+      <option value="5">5x5</option>
+      <option value="7">7x7</option>
+      <option value="9">9x9</option>
+      <option value="15">15x15</option>
+    </select>
+    <!-- Mostra dados da célula -->
+    <div id="tile-info">
+      X: <span id="tileX">0</span> 
+      Y: <span id="tileY">0</span> 
+      Conteúdo: <span id="tileContent">[]</span>
+    </div>
   </div>
+
+
 
   <div id="map-panel">
     <div>
