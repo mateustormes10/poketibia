@@ -45,8 +45,11 @@ export default class MapLoader {
             ground: [],
             entities: [],
             S: false,
-            walkable: true
+            walkable: true,
+            up: null,
+            down: null
         };
+
 
         for (let item of raw) {
             item = item.trim();
@@ -70,6 +73,19 @@ export default class MapLoader {
                 tile.walkable = false;
                 continue;
             }
+
+            // Escada para cima
+            if (item.startsWith("UP(") && item.endsWith(")")) {
+                tile.up = parseInt(item.slice(3, -1));
+                continue;
+            }
+
+            // Escada para baixo
+            if (item.startsWith("DOWN(") && item.endsWith(")")) {
+                tile.down = parseInt(item.slice(5, -1));
+                continue;
+            }
+
 
             // Spawn
             if (item.startsWith("SPAWN(") && item.endsWith(")")) {
@@ -117,4 +133,6 @@ export default class MapLoader {
             fx.y < camY + viewH
         );
     }
+
+
 }

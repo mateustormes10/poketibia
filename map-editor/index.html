@@ -32,6 +32,10 @@ canvas { border: 1px solid black; display: block; margin-top: 5px; }
     <!-- Botão para desselecionar -->
     <button id="deselectSprite">Deselecionar sprite</button>
     <label for="brushSize">Tamanho do bloco:</label>
+    <button id="floorUp">+</button>
+<button id="floorDown">-</button>
+<span id="floorDisplay">Andar: 1</span>
+
     
 
     <div id="sprite-list"></div>
@@ -49,6 +53,12 @@ canvas { border: 1px solid black; display: block; margin-top: 5px; }
       Y: <span id="tileY">0</span> 
       Conteúdo: <span id="tileContent">[]</span>
     </div>
+    <label for="floorValueInput">Valor:</label>
+    <input type="number" id="floorValueInput" value="4" min="0">
+    <button id="floorUpTileBtn">UP</button>
+    <button id="floorDownTileBtn">DOWN</button>
+
+
   </div>
 
 

@@ -16,6 +16,8 @@ export default class Game {
         this.updateViewDimensions();
 
         this.mapSize = 500;
+        this.currentZ = 3; // térreo inicial
+
 
         this.renderer = new Renderer(this.ctx, this.tileSize, this.viewWidth, this.viewHeight);
         this.map = new MapLoader(this.mapSize);
@@ -107,7 +109,11 @@ export default class Game {
 
 
     async start() {
-        await this.map.load("./assets/map.txt");
+        console.log("Carregando mapa:", `./assets/map_z${this.currentZ}.txt`);
+         await this.map.load(`./assets/map_z${this.currentZ}.txt`);
+        console.log("Mapa carregado!");
+
+
 
         // Spawna Pokémons definidos no mapa
         this.spawnMonstersFromMap();
@@ -504,8 +510,34 @@ export default class Game {
 
 
 
-        // Atualiza a posição do jogador
-        this.player.update(this.input, this.map);
+        // Atualiza a posição do jogador e checa ações especiais
+const result = this.player.update(this.input, this.map, this.wildMons, this.activeFollower, this.currentZ);
+
+if (result && result.action === "CHANGE_FLOOR") {
+    const targetZ = result.targetZ;
+
+    let spawnX = this.player.x;
+    let spawnY = this.player.y;
+
+    for (let y = 0; y < this.map.size; y++) {
+        for (let x = 0; x < this.map.size; x++) {
+            const t = this.map.getTile(x, y);
+            if (!t) continue;
+
+            // Se for o novo andar e tiver escada voltando para o andar anterior
+            if ((t.up === this.currentZ && targetZ > this.currentZ) || 
+                (t.down === this.currentZ && targetZ < this.currentZ)) {
+                spawnX = x;
+                spawnY = y;
+                break;
+            }
+        }
+    }
+
+    this.loadMap(targetZ, spawnX, spawnY);
+}
+
+
 
         // Movimentação limitada dos Pokémons (a cada 2 segundos)
         const now = performance.now();
@@ -525,8 +557,42 @@ export default class Game {
             Math.max(0, Math.min(this.player.y - Math.floor(this.viewHeight / 2), this.mapSize - this.viewHeight))
         );
 
-
         // Renderização com base na posição da câmera
         this.renderer.draw(this.map, this.player, this.wildMons,this.activeFollower,this.inventory, this.cameraX, this.cameraY);
     }
+
+    
+    async loadMap(level, spawnX = 31, spawnY = 25) {
+    console.log("Carregando mapa z" + level);
+
+    this.currentZ = level;
+
+    // Carrega o txt pelo MapLoader
+    await this.map.load(`./assets/map_z${level}.txt`);
+    console.log("Mapa carregado!");
+
+    // Respawna monstros
+    this.spawnMonstersFromMap();
+
+    // Reposiciona o player no spawn
+    this.player.x = spawnX;
+    this.player.y = spawnY;
+
+    if (this.activeFollower) {
+        this.activeFollower.x = spawnX;
+        this.activeFollower.y = spawnY + 1;
+    }
+
+    // 🔹 Atualiza câmera para o player
+    this.cameraX = Math.floor(
+        Math.max(0, Math.min(this.player.x - Math.floor(this.viewWidth / 2), this.mapSize - this.viewWidth))
+    );
+    this.cameraY = Math.floor(
+        Math.max(0, Math.min(this.player.y - Math.floor(this.viewHeight / 2), this.mapSize - this.viewHeight))
+    );
+
+    // 🔹 Força render imediato
+    this.renderer.draw(this.map, this.player, this.wildMons, this.activeFollower, this.inventory, this.cameraX, this.cameraY);
+}
+
 }

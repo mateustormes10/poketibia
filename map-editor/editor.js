@@ -7,6 +7,15 @@ const saveBtn = document.getElementById("saveBtn");
 const prevSpritesBtn = document.getElementById("prevSprites");
 const nextSpritesBtn = document.getElementById("nextSprites");
 const brushSizeSelect = document.getElementById("brushSize");
+const floorUpBtn = document.getElementById("floorUp");
+const floorDownBtn = document.getElementById("floorDown");
+const floorDisplay = document.getElementById("floorDisplay");
+
+const floorUpTileBtn = document.getElementById("floorUpTileBtn");
+const floorDownTileBtn = document.getElementById("floorDownTileBtn");
+const floorValueInput = document.getElementById("floorValueInput");
+
+
 
 // -------------------- SALVAR MAP (Node.js / Electron) --------------------
 const fs = require('fs');
@@ -18,6 +27,54 @@ const viewWidth = canvas.width / tileSize;  // tiles visíveis horizontal
 const viewHeight = canvas.height / tileSize; // tiles visíveis vertical
 
 let mapData = [];
+const maxFloors = 5;          // número de andares
+let currentFloor = 1;          // andar inicial
+let floorData = [];            // guarda cada andar
+
+// inicializa cada andar com a mesma estrutura do mapa
+for (let z = 0; z < maxFloors; z++) {
+    const map = [];
+    for (let y = 0; y < mapSize; y++) {
+        map[y] = [];
+        for (let x = 0; x < mapSize; x++) {
+            map[y][x] = { ground: [], walkable: true, spawn: null, entities: [] };
+        }
+    }
+    floorData.push(map);
+}
+
+// atualiza mapData para o andar atual
+function setCurrentMapData() {
+    mapData = floorData[currentFloor - 1];
+}
+setCurrentMapData();
+
+function updateFloorDisplay() {
+    floorDisplay.textContent = `Andar: ${currentFloor}`;
+}
+updateFloorDisplay();
+
+floorUpBtn.addEventListener("click", () => {
+    if (currentFloor < maxFloors) {
+        currentFloor++;
+        setCurrentMapData();
+        updateFloorDisplay();
+        render();
+        console.log("Andar atual:", currentFloor);
+    }
+});
+
+floorDownBtn.addEventListener("click", () => {
+    if (currentFloor > 1) {
+        currentFloor--;
+        setCurrentMapData();
+        updateFloorDisplay();
+        render();
+        console.log("Andar atual:", currentFloor);
+    }
+});
+
+
 let sprites = new Map();
 let selectedSpriteId = null;
 let spritePage = 0;
@@ -160,7 +217,8 @@ canvas.addEventListener("click", async (e) => {
             }
 
             ntile.walkable = walkableCheckbox.checked;
-            ntile.spawn = spawnCheckbox.checked ? spawnNameInput.value.trim() || "POKEMON" : null;
+            ntile.spawn = spawnCheckbox.checked && spawnNameInput.value.trim() !== "" ? spawnNameInput.value.trim() : null;
+
         }
     }
 
@@ -270,6 +328,28 @@ function parseCell(cell) {
     return tile;
 }
 
+async function loadAllFloors() {
+    for (let z = 1; z <= maxFloors; z++) {
+        try {
+            const txt = await fetch(`./map_z${z}.txt`).then(r => r.text());
+            const lines = txt.split("\n");
+
+            for (let y = 0; y < mapSize; y++) {
+                if (!lines[y]) continue;
+                const row = lines[y].trim().split(/\s+/);
+                for (let x = 0; x < mapSize; x++) {
+                    if (!row[x]) continue;
+                    floorData[z-1][y][x] = parseCell(row[x]);
+                }
+            }
+        } catch(err) {
+            console.warn(`Não foi possível carregar map_z${z}.txt:`, err);
+        }
+    }
+    setCurrentMapData();
+}
+
+
 
 async function loadMap(path) {
     const txt = await fetch(path).then(r => r.text());
@@ -332,6 +412,19 @@ function render() {
     ctx.strokeStyle = "yellow";
     ctx.lineWidth = 2;
     ctx.strokeRect((cursorX-cameraX)*tileSize, (cursorY-cameraY)*tileSize, tileSize, tileSize);
+
+    // Contorno vermelho para brushSize
+    const brushSize = parseInt(brushSizeSelect.value);
+    const half = Math.floor(brushSize / 2);
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(
+        (cursorX - half - cameraX) * tileSize,
+        (cursorY - half - cameraY) * tileSize,
+        brushSize * tileSize,
+        brushSize * tileSize
+    );
+
 }
 
 
@@ -364,23 +457,45 @@ document.addEventListener("keydown", (e) => {
 
     // ------------------ COPIAR ------------------
     if (ctrl && e.key.toLowerCase() === "c") {
-        clipboard = JSON.parse(JSON.stringify(mapData[cursorY][cursorX])); // cópia profunda
+        const size = parseInt(brushSizeSelect.value);
+        const half = Math.floor(size / 2);
+        clipboard = [];
+
+        for (let dy = -half; dy <= half; dy++) {
+            const row = [];
+            for (let dx = -half; dx <= half; dx++) {
+                const nx = cursorX + dx;
+                const ny = cursorY + dy;
+                if (nx < 0 || ny < 0 || nx >= mapSize || ny >= mapSize) {
+                    row.push(null);
+                } else {
+                    row.push(JSON.parse(JSON.stringify(mapData[ny][nx])));
+                }
+            }
+            clipboard.push(row);
+        }
+
         e.preventDefault();
-        console.log("Copiado:", clipboard);
+        console.log("Área copiada:", clipboard);
     }
+
 
     // ------------------ COLAR ------------------
     if (ctrl && e.key.toLowerCase() === "v" && clipboard) {
-        const size = 1; // cola apenas na célula selecionada
+        const size = clipboard.length;
+        const half = Math.floor(size / 2);
         const undoBlock = [];
+
         for (let dy = 0; dy < size; dy++) {
             for (let dx = 0; dx < size; dx++) {
-                const nx = cursorX + dx;
-                const ny = cursorY + dy;
-                if (nx >= mapSize || ny >= mapSize) continue;
-
+                const nx = cursorX + dx - half;
+                const ny = cursorY + dy - half;
+                if (nx < 0 || ny < 0 || nx >= mapSize || ny >= mapSize) continue;
                 const ntile = mapData[ny][nx];
+                const sourceTile = clipboard[dy][dx];
+                if (!sourceTile) continue;
 
+                // adiciona undo
                 undoBlock.push({
                     x: nx,
                     y: ny,
@@ -392,18 +507,20 @@ document.addEventListener("keydown", (e) => {
                     }
                 });
 
-                // cola os valores
-                ntile.ground = [...clipboard.ground];
-                ntile.walkable = clipboard.walkable;
-                ntile.spawn = clipboard.spawn;
-                ntile.entities = [...clipboard.entities.map(e => ({...e}))];
+                // cola
+                ntile.ground = [...sourceTile.ground];
+                ntile.walkable = sourceTile.walkable;
+                ntile.spawn = sourceTile.spawn;
+                ntile.entities = [...sourceTile.entities.map(e => ({...e}))];
             }
         }
+
         undoStack.push(undoBlock);
         render();
         e.preventDefault();
-        console.log("Colado");
+        console.log("Área colada");
     }
+
 
     // ------------------ DESFAZER ------------------
     if (ctrl && e.key.toLowerCase() === "z") {
@@ -445,56 +562,88 @@ document.addEventListener("keydown", (e) => {
 
 
 saveBtn.addEventListener("click", () => {
-    let txt = "";
-    for (let y = 0; y < mapSize; y++) {
-        for (let x = 0; x < mapSize; x++) {
-            const t = mapData[y][x];
-            const s = t.ground.join(",");
-            const w = t.walkable ? "S" : "N";
-            const sp = t.spawn || t.entities.length > 0 ? `SPAWN(${t.entities.length > 0 ? t.entities[0].name : "POKEMON"})` : "";
-            txt += `[${s},${w}${sp}] `;
+    floorData.forEach((map, index) => {
+        let txt = "";
+        for (let y = 0; y < mapSize; y++) {
+            for (let x = 0; x < mapSize; x++) {
+                const t = map[y][x];
+                const s = t.ground.join(",");
+                const w = t.walkable ? "S" : "N";
+                const sp = t.spawn ? `SPAWN(${t.spawn})` : "";
+
+                let vertical = "";
+                if (t.up) vertical += `UP(${t.up})`;
+                if (t.down) vertical += (vertical ? "," : "") + `DOWN(${t.down})`;
+
+                txt += `[${s},${w}${sp ? ',' + sp : ''}${vertical ? ',' + vertical : ''}] `;
+
+
+            }
+            txt += "\n";
         }
-        txt += "\n";
-    }
-
-    // Caminho absoluto na mesma pasta do editor.js
-    const mapPath = path.join(__dirname, "map.txt");
-
-    fs.writeFile(mapPath, txt, (err) => {
-        if (err) console.error("Erro ao salvar o mapa:", err);
-        else console.log("Mapa salvo com sucesso em:", mapPath);
+        const mapPath = path.join(__dirname, `map_z${index+1}.txt`);
+        fs.writeFile(mapPath, txt, err => {
+            if (err) console.error("Erro ao salvar o mapa:", err);
+            else console.log(`Mapa z${index+1} salvo com sucesso em:`, mapPath);
+        });
     });
 });
+
+floorUpTileBtn.addEventListener("click", () => {
+    const tile = mapData[cursorY][cursorX];
+    const val = parseInt(floorValueInput.value) || 0; // pega o valor do input, default 0
+    tile.up = val;    // grava UP
+    render();
+
+    // Atualiza display da célula
+    tileContentSpan.textContent = `[${tile.ground.join(",")},${tile.walkable ? "S" : "N"}${tile.spawn ? ",SPAWN(" + tile.spawn + ")" : ""}${tile.up ? ",UP(" + tile.up + ")" : ""}${tile.down ? ",DOWN(" + tile.down + ")" : ""}]`;
+});
+
+floorDownTileBtn.addEventListener("click", () => {
+    const tile = mapData[cursorY][cursorX];
+    const val = parseInt(floorValueInput.value) || 0;
+    tile.down = val;  // grava DOWN
+    render();
+
+    // Atualiza display da célula
+    tileContentSpan.textContent = `[${tile.ground.join(",")},${tile.walkable ? "S" : "N"}${tile.spawn ? ",SPAWN(" + tile.spawn + ")" : ""}${tile.up ? ",UP(" + tile.up + ")" : ""}${tile.down ? ",DOWN(" + tile.down + ")" : ""}]`;
+});
+
 
 
 // -------------------- INICIALIZA --------------------
 async function initialize() {
-    await loadMap("./map.txt"); // carrega o mapa e preenche mapData
+    await loadAllFloors();
+
 
     // Carrega todas as sprites para a lista lateral
     await loadSpritesPage(spritePage); // carrega a primeira página
     renderSpriteList();
 
-    // Descobre todas as sprites usadas no mapa
+    // Descobre todas as sprites usadas em TODOS os andares
     const spriteIds = new Set();
-    for (let y = 0; y < mapSize; y++) {
-        for (let x = 0; x < mapSize; x++) {
-            // mapData[y][x].ground = mapData[y][x].ground.filter(id => sprites.has(id));
-            mapData[y][x].ground.forEach(id => spriteIds.add(id));
+    for (let z = 0; z < maxFloors; z++) {
+        const map = floorData[z];
+        for (let y = 0; y < mapSize; y++) {
+            for (let x = 0; x < mapSize; x++) {
+                map[y][x].ground.forEach(id => spriteIds.add(id));
+            }
         }
     }
 
-    // Carrega apenas as sprites que existem no mapa
+    // Carrega todas as sprites usadas em TODOS os andares
     const promises = [];
     spriteIds.forEach(id => {
-        const img = new Image();
-        img.src = `../assets/sprites/${id}.png`;
-        const p = new Promise(resolve => {
-            img.onload = resolve;
-            img.onerror = resolve;
-        });
-        promises.push(p);
-        sprites.set(id, img);
+        if (!sprites.has(id)) {
+            const img = new Image();
+            img.src = `../assets/sprites/${id}.png`;
+            const p = new Promise(resolve => {
+                img.onload = resolve;
+                img.onerror = resolve;
+            });
+            promises.push(p);
+            sprites.set(id, img);
+        }
     });
 
     await Promise.all(promises);

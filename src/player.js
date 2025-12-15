@@ -40,55 +40,47 @@ export default class Player extends Entity {
         this.spriteId = this.spriteList.down[0][0];
     }
 
-    update(input, map, entities, follower) {
+    update(input, map, entities, follower, currentZ) {
         let moved = false;
-
         let nx = this.x;
         let ny = this.y;
 
-        // mover para cima
-        if (input.isDown("ArrowUp")) {
-            ny -= this.speed;
-            this.direction = "up";
-        }
+        // movimento normal
+        if (input.isDown("ArrowUp")) { ny -= this.speed; this.direction = "up"; }
+        if (input.isDown("ArrowDown")) { ny += this.speed; this.direction = "down"; }
+        if (input.isDown("ArrowLeft")) { nx -= this.speed; this.direction = "left"; }
+        if (input.isDown("ArrowRight")) { nx += this.speed; this.direction = "right"; }
 
-        // mover para baixo
-        if (input.isDown("ArrowDown")) {
-            ny += this.speed;
-            this.direction = "down";
-        }
+        // validar limites do mapa
+        if (nx < 0 || ny < 0 || nx >= map.size || ny >= map.size) { nx = this.x; ny = this.y; }
 
-        // mover para esquerda
-        if (input.isDown("ArrowLeft")) {
-            nx -= this.speed;
-            this.direction = "left";
-        }
-
-        // mover para direita
-        if (input.isDown("ArrowRight")) {
-            nx += this.speed;
-            this.direction = "right";
-        }
-
-        // Validar limites do mapa
-        if (nx < 0 || ny < 0 || nx >= map.size || ny >= map.size) {
-            return;
-        }
-
-        // Checa tile destino
         const tile = map.getTile(Math.floor(nx), Math.floor(ny));
-        if (tile && tile.walkable === false) {
-            return;
+
+        if (tile && tile.walkable === false) { nx = this.x; ny = this.y; }
+
+        // ESCADAS
+        if (tile) {
+            if (!this._floorChangeLocked) {
+                if (tile.up !== null && tile.up !== undefined && tile.up !== currentZ) {
+                    this._floorChangeLocked = true;
+                    return { action: "CHANGE_FLOOR", targetZ: tile.up };
+                }
+                if (tile.down !== null && tile.down !== undefined && tile.down !== currentZ) {
+                    this._floorChangeLocked = true;
+                    return { action: "CHANGE_FLOOR", targetZ: tile.down };
+                }
+            } else if (tile.up === null && tile.down === null) {
+                this._floorChangeLocked = false; // reset quando sair do tile de escada
+            }
+
         }
 
-        // Movimento válido
         if (nx !== this.x || ny !== this.y) {
             this.x = nx;
             this.y = ny;
             moved = true;
         }
 
-        // Atualiza animação em movimento
         this.moving = moved;
 
         if (!moved) {
@@ -96,7 +88,11 @@ export default class Player extends Entity {
             const group = this._getCurrentGroup();
             if (group && group[0]) this.spriteId = group[0];
         }
+
+        return null;
     }
+
+
 
     // Atualiza o grupo (troca de conjunto 3-imagens) — deltaTime em segundos
     updateAnimation(deltaTime) {
