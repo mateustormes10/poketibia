@@ -38,4 +38,27 @@ export default class Inventory {
         if (x < 0 || y < 0 || x >= this.cols || y >= this.rows) return null;
         return y * this.cols + x;
     }
+
+    handleClick(mx, my) {
+        if (!this.visible) return;
+
+        const slot = this.getSlotFromMouse(mx, my);
+        if (slot === null) return;
+
+        // Nenhum item sendo arrastado
+        if (!this.draggingItem) {
+            if (this.slots[slot]) {
+                this.draggingItem = this.slots[slot];
+                this.dragFrom = slot;
+                this.slots[slot] = null;
+            }
+            return;
+        }
+
+        // Já está arrastando → solta
+        this.slots[slot] = this.draggingItem;
+        this.draggingItem = null;
+        this.dragFrom = null;
+    }
+
 }

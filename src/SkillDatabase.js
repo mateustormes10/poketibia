@@ -57,7 +57,7 @@ export const SkillDatabase = {
   "Soco Dinâmico": new Skill({ name: "Soco Dinâmico", type: "damage", element: "fighting", power: 85, manaCost: 22, spriteSkillList: ["56827","56827"], targetArea: "single" }),
 
   "Teleporte": new Skill({ name: "Teleporte", type: "utility", element: "psychic", power: 10, manaCost: 20, spriteSkillList: ["56827","56827"], targetArea: "self" }),
-  "Psíquico": new Skill({ name: "Psíquico", type: "damage", element: "psychic", power: 80, manaCost: 22, spriteSkillList: ["56827","56827"], targetArea: "single" }),
+  "Psíquico": new Skill({ name: "Psíquico", type: "damage", element: "psychic", power: 80, manaCost: 22, spriteSkillList: ["56951","56952"], targetArea: "5x5" }),
 
   "Choque do Trovão": new Skill({ name: "Choque do Trovão", type: "damage", element: "electric", power: 40, manaCost: 10, spriteSkillList: ["56827","56827"], targetArea: "single" }),
   "Cauda de Ferro": new Skill({ name: "Cauda de Ferro", type: "damage", element: "steel", power: 55, manaCost: 14, spriteSkillList: ["56827","56827"], targetArea: "single" }),

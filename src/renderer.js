@@ -8,7 +8,7 @@ export default class Renderer {
         this.viewHeight = viewHeight;
     }
 
-    draw(map, player, entities, follower,inventory,  cameraX, cameraY) {
+    draw(map, player, entities, follower,inventory, interaction,messageBox,  cameraX, cameraY) {
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
         for (let vy = 0; vy < this.viewHeight; vy++) {
@@ -152,6 +152,81 @@ export default class Renderer {
        
         this._drawPlayerComposed(player);
         this.drawInventory(inventory);
+        this.drawInteractionMenu(interaction);
+        this.drawMessageBox(messageBox);
+
+    }
+
+    drawMessageBox(messageBox) {
+        if (!messageBox || !messageBox.visible) return;
+
+        const ctx = this.ctx;
+
+        const boxWidth = 360;
+        const boxHeight = 60;
+
+        const x = (ctx.canvas.width - boxWidth) / 2;
+        const y = (ctx.canvas.height - boxHeight) / 2;
+
+        ctx.fillStyle = "rgba(0,0,0,0.85)";
+        ctx.fillRect(x, y, boxWidth, boxHeight);
+
+        ctx.strokeStyle = "#aaa";
+        ctx.strokeRect(x, y, boxWidth, boxHeight);
+
+        ctx.fillStyle = "white";
+        ctx.font = "16px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        ctx.fillText(messageBox.text, x + boxWidth / 2, y + boxHeight / 2);
+    }
+
+
+    drawInteractionMenu(interaction) {
+        if (!interaction || !interaction.open) return;
+
+        const ctx = this.ctx;
+
+        const boxWidth = 160;
+        const optionHeight = 28;
+        const padding = 8;
+        const boxHeight =
+            interaction.options.length * optionHeight + padding * 2;
+
+        const x = (ctx.canvas.width - boxWidth) / 2;
+        const y = ctx.canvas.height - boxHeight - 40;
+
+        // fundo
+        ctx.fillStyle = "rgba(0,0,0,0.85)";
+        ctx.fillRect(x, y, boxWidth, boxHeight);
+
+        ctx.strokeStyle = "#aaa";
+        ctx.strokeRect(x, y, boxWidth, boxHeight);
+
+        ctx.font = "14px Arial";
+        ctx.textBaseline = "middle";
+
+        for (let i = 0; i < interaction.options.length; i++) {
+            const oy = y + padding + i * optionHeight;
+
+            if (i === interaction.index) {
+                ctx.fillStyle = "#444";
+                ctx.fillRect(
+                    x + 2,
+                    oy,
+                    boxWidth - 4,
+                    optionHeight
+                );
+            }
+
+            ctx.fillStyle = "white";
+            ctx.fillText(
+                interaction.options[i],
+                x + 12,
+                oy + optionHeight / 2
+            );
+        }
     }
 
     drawInventory(inventory) {

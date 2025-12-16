@@ -5,6 +5,7 @@ import Input from "./input.js";
 import Pokemon from "./pokemon.js";
 import SkillEffect from "./SkillEffect.js";
 import Inventory from "./inventory/Inventory.js";
+import { TileActions } from "./TileActions.js";
 
 import { SkillDatabase } from "./SkillDatabase.js";
 export default class Game {
@@ -29,6 +30,22 @@ export default class Game {
             { name: "Staryu", spriteId: 50001 },
             { name: "Pikachu", spriteId: 50020 }
         ];
+
+        this.interaction = {
+            open: false,
+            tile: null,
+            x: 0,
+            y: 0,
+            options: [],
+            index: 0
+        };
+
+        this.messageBox = {
+            text: "",
+            visible: false,
+            timer: 0
+        };
+
         this.inventory = new Inventory(8, 4);
 
         this.activeFollower = null;
@@ -44,6 +61,13 @@ export default class Game {
         this.cameraX = this.player.x;
         this.cameraY = this.player.y;
     }
+
+    showMessage(text, durationMs = 2000) {
+        this.messageBox.text = text;
+        this.messageBox.visible = true;
+        this.messageBox.timer = durationMs;
+    }
+
 
     // Método para atualizar a largura e altura da visualização com base no tamanho do canvas
     updateViewDimensions() {
@@ -137,6 +161,34 @@ export default class Game {
             }
         }
     }
+
+    getNearbyInteractableTile() {
+        const px = Math.floor(this.player.x);
+        const py = Math.floor(this.player.y);
+
+        const dirs = [
+            { x: 0, y: -1 },
+            { x: 0, y: 1 },
+            { x: -1, y: 0 },
+            { x: 1, y: 0 }
+        ];
+
+        for (const d of dirs) {
+            const x = px + d.x;
+            const y = py + d.y;
+            const tile = this.map.getTile(x, y);
+            if (!tile) continue;
+
+            for (const rawId of tile.ground) {
+                const id = Number(rawId);
+                if (TileActions[id]) {
+                    return { tile, x, y, spriteId: id };
+                }
+            }
+        }
+        return null;
+    }
+
 
     createSkillMenu() {
         // contêiner único
@@ -508,34 +560,52 @@ export default class Game {
             this._uiAcc = 0;
         }
 
-
-
-        // Atualiza a posição do jogador e checa ações especiais
-const result = this.player.update(this.input, this.map, this.wildMons, this.activeFollower, this.currentZ);
-
-if (result && result.action === "CHANGE_FLOOR") {
-    const targetZ = result.targetZ;
-
-    let spawnX = this.player.x;
-    let spawnY = this.player.y;
-
-    for (let y = 0; y < this.map.size; y++) {
-        for (let x = 0; x < this.map.size; x++) {
-            const t = this.map.getTile(x, y);
-            if (!t) continue;
-
-            // Se for o novo andar e tiver escada voltando para o andar anterior
-            if ((t.up === this.currentZ && targetZ > this.currentZ) || 
-                (t.down === this.currentZ && targetZ < this.currentZ)) {
-                spawnX = x;
-                spawnY = y;
-                break;
+        if (!this.interaction.open && this.input.isDown("v") && !this._vPressed) {
+            const found = this.getNearbyInteractableTile();
+            if (found) {
+                this.openInteractionMenu(found);
+            }
+            this._vPressed = true;
+        }
+        if (!this.input.isDown("v")) this._vPressed = false;
+        this.updateInteractionMenu();
+        if (this.messageBox.visible) {
+            this.messageBox.timer -= deltaMs;
+            if (this.messageBox.timer <= 0) {
+                this.messageBox.visible = false;
+                this.messageBox.text = "";
             }
         }
-    }
 
-    this.loadMap(targetZ, spawnX, spawnY);
-}
+        // Atualiza a posição do jogador e checa ações especiais
+        if (!this.interaction.open) {
+            const result = this.player.update(this.input, this.map, this.wildMons, this.activeFollower, this.currentZ);
+            if (result && result.action === "CHANGE_FLOOR") {
+            const targetZ = result.targetZ;
+
+            let spawnX = this.player.x;
+            let spawnY = this.player.y;
+
+            for (let y = 0; y < this.map.size; y++) {
+                for (let x = 0; x < this.map.size; x++) {
+                    const t = this.map.getTile(x, y);
+                    if (!t) continue;
+
+                    // Se for o novo andar e tiver escada voltando para o andar anterior
+                    if ((t.up === this.currentZ && targetZ > this.currentZ) || 
+                        (t.down === this.currentZ && targetZ < this.currentZ)) {
+                        spawnX = x;
+                        spawnY = y;
+                        break;
+                    }
+                }
+            }
+
+            this.loadMap(targetZ, spawnX, spawnY);
+        }
+        }
+
+        
 
 
 
@@ -558,41 +628,133 @@ if (result && result.action === "CHANGE_FLOOR") {
         );
 
         // Renderização com base na posição da câmera
-        this.renderer.draw(this.map, this.player, this.wildMons,this.activeFollower,this.inventory, this.cameraX, this.cameraY);
+        this.renderer.draw(this.map, this.player, this.wildMons,this.activeFollower,this.inventory,this.interaction,this.messageBox, this.cameraX, this.cameraY);
+    }
+    executeInteraction() {
+        const option = this.interaction.options[this.interaction.index];
+        const { x, y, tile } = this.interaction;
+
+        const spriteId = Number(tile.ground[tile.ground.length - 1]);
+
+        const action = TileActions[spriteId];
+
+        if (option === "Olhar" && action.look) {
+            this.showMessage(action.look(tile));
+        }
+
+        if (option === "Usar" && action.use?.onUse) {
+            action.use.onUse(this, x, y);
+        }
+
+        this.closeInteractionMenu();
+    }
+
+    closeInteractionMenu() {
+        this.interaction.open = false;
+        this.interaction.tile = null;
+        this.interaction.options = [];
+        this.interaction.index = 0;
+    }
+
+    handleTileInteraction(tile, x, y) {
+        if (!tile || !tile.ground || tile.ground.length === 0) return;
+
+        // pega o sprite do topo
+        const spriteId = Number(tile.ground[tile.ground.length - 1]);
+        const action = TileActions[spriteId];
+        if (!action) return;
+
+        // LOOK
+        if (action.look) {
+            console.log(action.look(tile));
+        }
+
+        // USE
+        if (action.use?.allowed) {
+            this.useTile(spriteId, action, x, y);
+        }
+    }
+
+
+
+    openInteractionMenu(found) {
+        const action = TileActions[found.spriteId];
+
+        this.interaction.open = true;
+        this.interaction.tile = found.tile;
+        this.interaction.x = found.x;
+        this.interaction.y = found.y;
+        this.interaction.index = 0;
+
+        const options = [];
+        if (action.look) options.push("Olhar");
+        if (action.use?.allowed) options.push("Usar");
+
+        this.interaction.options = options;
+    }
+
+    updateInteractionMenu() {
+        if (!this.interaction.open) return;
+
+        if (this.input.isDown("ArrowUp") && !this._menuUp) {
+            this.interaction.index =
+                (this.interaction.index - 1 + this.interaction.options.length) %
+                this.interaction.options.length;
+            this._menuUp = true;
+        }
+        if (!this.input.isDown("ArrowUp")) this._menuUp = false;
+
+        if (this.input.isDown("ArrowDown") && !this._menuDown) {
+            this.interaction.index =
+                (this.interaction.index + 1) %
+                this.interaction.options.length;
+            this._menuDown = true;
+        }
+        if (!this.input.isDown("ArrowDown")) this._menuDown = false;
+
+        if (this.input.isDown("Enter") && !this._menuEnter) {
+            this.executeInteraction();
+            this._menuEnter = true;
+        }
+        if (!this.input.isDown("Enter")) this._menuEnter = false;
+
+        if (this.input.isDown("Escape")) {
+            this.closeInteractionMenu();
+        }
     }
 
     
     async loadMap(level, spawnX = 31, spawnY = 25) {
-    console.log("Carregando mapa z" + level);
+        console.log("Carregando mapa z" + level);
 
-    this.currentZ = level;
+        this.currentZ = level;
 
-    // Carrega o txt pelo MapLoader
-    await this.map.load(`./assets/map_z${level}.txt`);
-    console.log("Mapa carregado!");
+        // Carrega o txt pelo MapLoader
+        await this.map.load(`./assets/map_z${level}.txt`);
+        console.log("Mapa carregado!");
 
-    // Respawna monstros
-    this.spawnMonstersFromMap();
+        // Respawna monstros
+        this.spawnMonstersFromMap();
 
-    // Reposiciona o player no spawn
-    this.player.x = spawnX;
-    this.player.y = spawnY;
+        // Reposiciona o player no spawn
+        this.player.x = spawnX;
+        this.player.y = spawnY;
 
-    if (this.activeFollower) {
-        this.activeFollower.x = spawnX;
-        this.activeFollower.y = spawnY + 1;
+        if (this.activeFollower) {
+            this.activeFollower.x = spawnX;
+            this.activeFollower.y = spawnY + 1;
+        }
+
+        // 🔹 Atualiza câmera para o player
+        this.cameraX = Math.floor(
+            Math.max(0, Math.min(this.player.x - Math.floor(this.viewWidth / 2), this.mapSize - this.viewWidth))
+        );
+        this.cameraY = Math.floor(
+            Math.max(0, Math.min(this.player.y - Math.floor(this.viewHeight / 2), this.mapSize - this.viewHeight))
+        );
+
+        // 🔹 Força render imediato
+        this.renderer.draw(this.map, this.player, this.wildMons, this.activeFollower, this.inventory,  this.interaction,this.messageBox,this.cameraX, this.cameraY);
     }
-
-    // 🔹 Atualiza câmera para o player
-    this.cameraX = Math.floor(
-        Math.max(0, Math.min(this.player.x - Math.floor(this.viewWidth / 2), this.mapSize - this.viewWidth))
-    );
-    this.cameraY = Math.floor(
-        Math.max(0, Math.min(this.player.y - Math.floor(this.viewHeight / 2), this.mapSize - this.viewHeight))
-    );
-
-    // 🔹 Força render imediato
-    this.renderer.draw(this.map, this.player, this.wildMons, this.activeFollower, this.inventory, this.cameraX, this.cameraY);
-}
 
 }
