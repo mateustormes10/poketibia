@@ -2,6 +2,7 @@
 
 import {
     getPlayerById,
+    getPlayerByName,
     getPlayerByAccountId,
     createPlayer,
     updatePlayerPosition
@@ -19,11 +20,11 @@ export async function getPlayer(accountId) {
  * Cria um novo personagem para a account
  */
 export async function createNewPlayer(accountId, name, townId = 1) {
-    const existing = await getPlayerByAccountId(accountId);
+    const existing = await getPlayerByName(name);
 
     if (existing) {
         return {
-            error: "Account já possui um personagem"
+            error: "Já existe um personagem com este nome!"
         };
     }
 

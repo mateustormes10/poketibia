@@ -13,6 +13,14 @@ export async function getPlayerByAccountId(accountId) {
         "SELECT * FROM players WHERE account_id = ?",
         [accountId]
     );
+    return rows || null;
+}
+
+export async function getPlayerByName(name) {
+    const rows = await query(
+        "SELECT * FROM players WHERE name = ?",
+        [name]
+    );
     return rows[0] || null;
 }
 
