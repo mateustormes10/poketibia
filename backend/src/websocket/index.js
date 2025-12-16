@@ -4,19 +4,28 @@ import { handleMovement } from "./handlers/movement.js";
 import { handleChat } from "./handlers/chat.js";
 import { handlePokemonAction } from "./handlers/pokemon.js";
 import { handleCombat } from "./handlers/combat.js";
-import { cleanupIdlePlayers, getAllPlayers } from "./state/players.js";
+import { getAllPlayers, registerPlayer, removePlayer } from "./state/players.js";
 
 const wss = new WebSocketServer({ port: 8080 });
 
 wss.on("connection", (ws) => {
+    console.log("[WS] Novo cliente conectado");
+
     ws.on("message", async (message) => {
-        const data = JSON.parse(message);
+        let data;
+        try {
+            data = JSON.parse(message);
+        } catch (err) {
+            console.error("[WS] JSON inválido:", message);
+            return;
+        }
 
         switch (data.action) {
             case "auth":
-                await handleAuth(ws, data);
+                console.log("[WS] Ação: auth");
+                await handleAuth(ws, data); // aqui você registra o player com registerPlayer
                 break;
-            case "movement":
+            case "movement": // ação que o cliente deve enviar
                 await handleMovement(ws, data);
                 break;
             case "chat":
@@ -29,9 +38,8 @@ wss.on("connection", (ws) => {
                 await handleCombat(ws, data);
                 break;
             case "request_all_players":
-                // transforma o Map em objeto JSON indexado pelo player.id
                 const allPlayersObj = {};
-                for (const [, player] of getAllPlayers()) {
+                for (const player of getAllPlayers().values()) {
                     allPlayersObj[player.id] = {
                         id: player.id,
                         name: player.name,
@@ -41,12 +49,20 @@ wss.on("connection", (ws) => {
                 }
                 ws.send(JSON.stringify({ action: "all_players", players: allPlayersObj }));
                 break;
-
+            default:
+                console.warn("[WS] Ação desconhecida:", data.action);
         }
+    });
+
+    ws.on("close", () => {
+        console.log("[WS] Cliente desconectou");
+        removePlayer(ws);
+    });
+
+    ws.on("error", (err) => {
+        console.error("[WS] Erro no cliente:", err);
+        removePlayer(ws);
     });
 });
 
-// Limpeza automática de players idle
-setInterval(cleanupIdlePlayers, 60000);
-
-console.log("WebSocket rodando em ws://localhost:8080");
+console.log("Servidor WebSocket rodando na porta 8080");

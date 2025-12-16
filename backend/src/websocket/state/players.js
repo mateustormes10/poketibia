@@ -22,7 +22,8 @@ export function registerPlayer(ws, player) {
         name: player.name,
         position: { x: 20, y: 20, z: 3 },
         spriteId: player.spriteId,  // ID do sprite do jogador
-        lastAction: Date.now()
+        lastAction: Date.now(),
+        ws // guardando o ws dentro do objeto facilita notificações
     });
 }
 
@@ -39,8 +40,8 @@ export function updatePlayerState(playerId, updates) {
 }
 
 // Remove player
-export function removePlayer(playerId) {
-    players.delete(playerId);
+export function removePlayer(ws) {
+    players.delete(ws);
 }
 
 // Retorna player por WebSocket
@@ -62,7 +63,7 @@ export function getAllPlayers() {
 // Busca players próximos
 export function getNearbyPlayers(sourcePlayer, range = 20) {
     const result = [];
-    for (const [ws, player] of players.entries()) {
+    for (const player of players.values()) {
         if (player.id === sourcePlayer.id) continue;
         if (player.position.z !== sourcePlayer.position.z) continue;
 
@@ -70,7 +71,7 @@ export function getNearbyPlayers(sourcePlayer, range = 20) {
         const dy = Math.abs(player.position.y - sourcePlayer.position.y);
 
         if (Math.max(dx, dy) <= range) {
-            result.push({ ws, player });
+            result.push(player); // agora retornamos apenas o player, ws incluso dentro
         }
     }
     return result;

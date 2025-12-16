@@ -14,9 +14,6 @@ export default class Game {
         this.characterIndex = characterIndex;
         this.wsClient = new WsClient(this, "ws://localhost:8080", this.token);
 
-        const nearbyPlayers = new Map(); // key = playerId, value = {sprite, position, name}
-
-
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
 
@@ -68,6 +65,21 @@ export default class Game {
         this.cameraX = this.player.x;
         this.cameraY = this.player.y;
     }
+
+    updatePlayerFromWS(playersList) {
+        const me = playersList.find(p => p.itsme === "yes");
+        if (!me) return;
+
+        if (!this.player) {
+            this.player = new Player(me.x, me.y, me.name);
+        } else {
+            this.player.x = me.x;
+            this.player.y = me.y;
+            this.player.z = me.z ?? this.player.z;
+            this.player.name = me.name;
+        }
+    }
+
 
     showMessage(text, durationMs = 2000) {
         this.messageBox.text = text;
@@ -563,9 +575,19 @@ export default class Game {
         }
 
         // Envia posição atual para o servidor (ex.: a cada 100ms)
-if (this.wsClient.playerId) {
-    this.wsClient.move(this.player.x, this.player.y, this.currentZ);
+// Envia posição do player apenas se mudou e a cada 100ms
+this._lastMoveSend ??= 0;
+const nowt = performance.now();
+if (nowt - this._lastMoveSend > 100) {
+    if (this.player.x !== this._lastSentX || this.player.y !== this._lastSentY || this.currentZ !== this._lastSentZ) {
+        this.wsClient.move(this.player.x, this.player.y, this.currentZ);
+        this._lastSentX = this.player.x;
+        this._lastSentY = this.player.y;
+        this._lastSentZ = this.currentZ;
+    }
+    this._lastMoveSend = nowt;
 }
+
 
 
 
@@ -899,7 +921,7 @@ updateTileIdleAnimations(deltaMs) {
         );
 
         // 🔹 Força render imediato
-        this.renderer.draw(this.map, this.player, this.wildMons, this.activeFollower, this.inventory,  this.interaction,this.messageBox,this.cameraX, this.cameraY);
+        this.renderer.draw(this.map, this.player, this.wildMons,this.activeFollower,this.inventory,this.interaction,this.messageBox, this.cameraX, this.cameraY,this.wsClient.otherPlayers);
     }
 
     checkTileTriggers() {
