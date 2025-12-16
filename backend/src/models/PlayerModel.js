@@ -61,9 +61,9 @@ export async function createPlayer({
         100,            // healthmax
         100,            // mana
         100,            // manamax
-        100,            // posx
-        100,            // posy
-        7,              // posz
+        20,            // posx
+        20,            // posy
+        3,              // posz
         Buffer.alloc(0) // conditions (BLOB obrigatório)
     ];
 

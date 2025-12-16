@@ -1,20 +1,4 @@
-export function getNearbyPlayers(sourcePlayer, range = 20) {
-    const result = [];
 
-    for (const [ws, player] of players.entries()) {
-        if (player.id === sourcePlayer.id) continue;
-        if (player.position.z !== sourcePlayer.position.z) continue;
-
-        const dx = Math.abs(player.position.x - sourcePlayer.position.x);
-        const dy = Math.abs(player.position.y - sourcePlayer.position.y);
-
-        if (Math.max(dx, dy) <= range) {
-            result.push({ ws, player });
-        }
-    }
-
-    return result;
-}
 
 function isNearby(playerState, otherPlayerState) {
     // Aqui você define a lógica de proximidade, usando coordenadas (x, y, z)
@@ -36,11 +20,8 @@ export function registerPlayer(ws, player) {
     players.set(ws, {
         id: player.id,
         name: player.name,
-        position: {
-            x: 100,
-            y: 100,
-            z: 7
-        },
+        position: { x: 20, y: 20, z: 3 },
+        spriteId: player.spriteId,  // ID do sprite do jogador
         lastAction: Date.now()
     });
 }
@@ -54,31 +35,18 @@ export function updatePlayerState(playerId, updates) {
 
     Object.assign(player, updates);
     player.lastAction = Date.now();
-
     return player;
 }
 
-/**
- * Remove player do estado
- */
+// Remove player
 export function removePlayer(playerId) {
     players.delete(playerId);
 }
 
-/**
- * Retorna todos os players conectados
- */
-export function getAllPlayers() {
-    return players;
-}
-
-/**
- * Retorna player específico
- */
+// Retorna player por WebSocket
 export function getPlayer(ws) {
     return players.get(ws);
 }
-
 export function getPlayerById(playerId) {
     for (const player of players.values()) {
         if (player.id === playerId) return player;
@@ -86,18 +54,34 @@ export function getPlayerById(playerId) {
     return null;
 }
 
-/**
- * Remove players inativos (idle > 5min)
- */
+// Retorna todos os players
+export function getAllPlayers() {
+    return players;
+}
+
+// Busca players próximos
+export function getNearbyPlayers(sourcePlayer, range = 20) {
+    const result = [];
+    for (const [ws, player] of players.entries()) {
+        if (player.id === sourcePlayer.id) continue;
+        if (player.position.z !== sourcePlayer.position.z) continue;
+
+        const dx = Math.abs(player.position.x - sourcePlayer.position.x);
+        const dy = Math.abs(player.position.y - sourcePlayer.position.y);
+
+        if (Math.max(dx, dy) <= range) {
+            result.push({ ws, player });
+        }
+    }
+    return result;
+}
+// Remove players inativos
 export function cleanupIdlePlayers(timeout = 300000) {
     const now = Date.now();
-
-    for (const [id, player] of players) {
+    for (const [ws, player] of players) {
         if (now - player.lastAction > timeout) {
-            try {
-                player.socket.close();
-            } catch {}
-            players.delete(id);
+            try { ws.close(); } catch {}
+            players.delete(ws);
         }
     }
 }

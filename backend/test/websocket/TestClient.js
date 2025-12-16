@@ -57,6 +57,12 @@ export class TestClient {
         await this.wait(300);
     }
 
+    async requestAllPlayers() {
+        this.send("request_all_players");
+        await this.wait(300); // aguarda resposta
+    }
+
+
     async chat(message) {
         this.send("chat", { playerId: this.playerId, message });
         await this.wait(300);

@@ -6,10 +6,17 @@ import Pokemon from "./pokemon.js";
 import SkillEffect from "./SkillEffect.js";
 import Inventory from "./inventory/Inventory.js";
 import { TileActions } from "./TileActions.js";
-
+import WsClient from "./websocket/WsClient.js";
 import { SkillDatabase } from "./SkillDatabase.js";
 export default class Game {
-    constructor(canvas) {
+    constructor(canvas, token, characterIndex) {
+        this.token = token;
+        this.characterIndex = characterIndex;
+        this.wsClient = new WsClient(this, "ws://localhost:8080", this.token);
+
+        const nearbyPlayers = new Map(); // key = playerId, value = {sprite, position, name}
+
+
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
 
@@ -20,7 +27,7 @@ export default class Game {
         this.currentZ = 3; // térreo inicial
 
 
-        this.renderer = new Renderer(this.ctx, this.tileSize, this.viewWidth, this.viewHeight);
+        this.renderer = new Renderer(this.ctx, this.tileSize, this.viewWidth, this.viewHeight, this);
         this.map = new MapLoader(this.mapSize);
         
 
@@ -75,7 +82,7 @@ export default class Game {
         this.viewHeight = Math.ceil(this.canvas.height / this.tileSize);
 
         // Recriar o renderer após o redimensionamento
-        this.renderer = new Renderer(this.ctx, this.tileSize, this.viewWidth, this.viewHeight);
+        this.renderer = new Renderer(this.ctx, this.tileSize, this.viewWidth, this.viewHeight, this);
     }
 
     createPokemonMenu() {
@@ -137,6 +144,13 @@ export default class Game {
          await this.map.load(`./assets/map_z${this.currentZ}.txt`);
         console.log("Mapa carregado!");
 
+        // Conectar WebSocket
+    try {
+        await this.wsClient.connect();
+        console.log("WebSocket conectado e autenticado!");
+    } catch (err) {
+        console.error("Falha ao conectar WebSocket:", err);
+    }
 
 
         // Spawna Pokémons definidos no mapa
@@ -548,6 +562,17 @@ export default class Game {
             this.handleInventoryInput();
         }
 
+        // Envia posição atual para o servidor (ex.: a cada 100ms)
+if (this.wsClient.playerId) {
+    this.wsClient.move(this.player.x, this.player.y, this.currentZ);
+}
+
+
+
+
+
+
+
 
         // delta ms aproximado entre frames
         let nowTs = performance.now();
@@ -650,8 +675,9 @@ this.updateTileIdleAnimations(deltaMs);
         );
 
         // Renderização com base na posição da câmera
-        this.renderer.draw(this.map, this.player, this.wildMons,this.activeFollower,this.inventory,this.interaction,this.messageBox, this.cameraX, this.cameraY);
+        this.renderer.draw(this.map, this.player, this.wildMons,this.activeFollower,this.inventory,this.interaction,this.messageBox, this.cameraX, this.cameraY,this.wsClient.otherPlayers);
     }
+
 
     openInteractionMenu(found) {
         const action = TileActions[found.spriteId];

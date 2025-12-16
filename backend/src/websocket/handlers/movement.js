@@ -1,10 +1,9 @@
-import { updatePlayerPosition } from "../../models/PlayerModel.js";
+import { updatePlayerPosition } from "../../models/PlayerModel.js"; // opcional: DB
 import { getPlayer, getNearbyPlayers } from "../state/players.js";
 import { sendError } from "../utils/errorHandler.js";
 
 export async function handleMovement(ws, payload) {
     const player = getPlayer(ws);
-
     if (!player) {
         sendError(ws, "Not authenticated");
         return;
@@ -16,13 +15,12 @@ export async function handleMovement(ws, payload) {
     player.position = { x, y, z };
     player.lastAction = Date.now();
 
-    // Persiste no banco (opcional: pode ser async em batch)
+    // Persiste no banco (opcional)
     await updatePlayerPosition(player.id, x, y, z);
 
     // Notifica jogadores próximos
     const nearbyPlayers = getNearbyPlayers(player);
-
-    nearbyPlayers.forEach(({ ws: nearbyWs, player: nearby }) => {
+    nearbyPlayers.forEach(({ ws: nearbyWs }) => {
         nearbyWs.send(JSON.stringify({
             action: "player_move",
             playerId: player.id,

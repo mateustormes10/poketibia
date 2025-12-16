@@ -4,7 +4,7 @@ import { handleMovement } from "./handlers/movement.js";
 import { handleChat } from "./handlers/chat.js";
 import { handlePokemonAction } from "./handlers/pokemon.js";
 import { handleCombat } from "./handlers/combat.js";
-import { cleanupIdlePlayers } from "./state/players.js";
+import { cleanupIdlePlayers, getAllPlayers } from "./state/players.js";
 
 const wss = new WebSocketServer({ port: 8080 });
 
@@ -28,6 +28,20 @@ wss.on("connection", (ws) => {
             case "combat":
                 await handleCombat(ws, data);
                 break;
+            case "request_all_players":
+                // transforma o Map em objeto JSON indexado pelo player.id
+                const allPlayersObj = {};
+                for (const [, player] of getAllPlayers()) {
+                    allPlayersObj[player.id] = {
+                        id: player.id,
+                        name: player.name,
+                        position: player.position,
+                        lastAction: player.lastAction
+                    };
+                }
+                ws.send(JSON.stringify({ action: "all_players", players: allPlayersObj }));
+                break;
+
         }
     });
 });

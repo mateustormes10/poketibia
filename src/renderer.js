@@ -1,14 +1,15 @@
 import { Sprites } from "./spriteManager.js";
 
 export default class Renderer {
-    constructor(ctx, tileSize, viewWidth, viewHeight) {
+    constructor(ctx, tileSize, viewWidth, viewHeight, game) {
         this.ctx = ctx;
         this.tileSize = tileSize;
         this.viewWidth = viewWidth;
         this.viewHeight = viewHeight;
+        this.game = game;
     }
 
-    draw(map, player, entities, follower,inventory, interaction,messageBox,  cameraX, cameraY) {
+    draw(map, player, entities, follower,inventory, interaction,messageBox,  cameraX, cameraY, otherPlayers) {
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
         for (let vy = 0; vy < this.viewHeight; vy++) {
@@ -177,6 +178,36 @@ export default class Renderer {
                 }
             }
         }
+
+// Desenhar outros players
+if (otherPlayers) {
+    for (const playerId in otherPlayers) {
+        const p = otherPlayers[playerId];
+        if (!p) continue;
+
+        const screenX = (p.x - cameraX) * this.tileSize;
+        const screenY = (p.y - cameraY) * this.tileSize;
+
+        // Usa sprite do player ou algum padrão
+        const sprite = p.sprite || Sprites.get( 36204 );
+        if (sprite && sprite.complete) {
+            this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
+        }
+
+        // Desenhar nome
+        if (p.name) {
+            this.ctx.fillStyle = "white";
+            this.ctx.strokeStyle = "black";
+            this.ctx.font = "14px Arial";
+            this.ctx.lineWidth = 3;
+
+            this.ctx.strokeText(p.name, screenX-10, screenY-8);
+            this.ctx.fillText(p.name, screenX-10, screenY-8);
+        }
+    }
+}
+
+
 
      
 
