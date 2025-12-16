@@ -151,6 +151,35 @@ export default class Renderer {
         }
        
         this._drawPlayerComposed(player);
+
+        // =====================================
+        // OVERLAY (árvores, casas, topo)
+        // =====================================
+        for (let vy = 0; vy < this.viewHeight; vy++) {
+            for (let vx = 0; vx < this.viewWidth; vx++) {
+
+                const mx = cameraX + vx;
+                const my = cameraY + vy;
+                const tile = map.getTile(mx, my);
+                if (!tile || !tile.overlay) continue;
+
+
+                const screenX = vx * this.tileSize;
+                const screenY = vy * this.tileSize;
+
+                
+
+                for (let spriteId of tile.overlay) {
+                    const sprite = Sprites.get(spriteId);
+                    if (sprite?.complete) {
+                        this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
+                    }
+                }
+            }
+        }
+
+     
+
         this.drawInventory(inventory);
         this.drawInteractionMenu(interaction);
         this.drawMessageBox(messageBox);

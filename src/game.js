@@ -179,15 +179,32 @@ export default class Game {
             const tile = this.map.getTile(x, y);
             if (!tile) continue;
 
-            for (const rawId of tile.ground) {
-                const id = Number(rawId);
-                if (TileActions[id]) {
-                    return { tile, x, y, spriteId: id };
+            // 1️⃣ PRIORIDADE: OVERLAY (o que está na frente do player)
+            if (tile.overlay && tile.overlay.length > 0) {
+                const spriteId = Number(tile.overlay[tile.overlay.length - 1]);
+                if (TileActions[spriteId]) {
+                    const a = TileActions[spriteId];
+                    if (a.look || a.use?.allowed) {
+                        return { tile, x, y, spriteId };
+                    }
+                }
+            }
+
+            // 2️⃣ FALLBACK: GROUND
+            if (tile.ground && tile.ground.length > 0) {
+                const spriteId = Number(tile.ground[tile.ground.length - 1]);
+                if (TileActions[spriteId]) {
+                    const a = TileActions[spriteId];
+                    if (a.look || a.use?.allowed) {
+                        return { tile, x, y, spriteId };
+                    }
                 }
             }
         }
+
         return null;
     }
+
 
 
     createSkillMenu() {
@@ -576,10 +593,15 @@ export default class Game {
                 this.messageBox.text = "";
             }
         }
+this.updateTileIdleAnimations(deltaMs);
 
         // Atualiza a posição do jogador e checa ações especiais
         if (!this.interaction.open) {
             const result = this.player.update(this.input, this.map, this.wildMons, this.activeFollower, this.currentZ);
+
+            // após update do player
+            this.checkTileTriggers();
+
             if (result && result.action === "CHANGE_FLOOR") {
             const targetZ = result.targetZ;
 
@@ -630,24 +652,80 @@ export default class Game {
         // Renderização com base na posição da câmera
         this.renderer.draw(this.map, this.player, this.wildMons,this.activeFollower,this.inventory,this.interaction,this.messageBox, this.cameraX, this.cameraY);
     }
+
+    openInteractionMenu(found) {
+        const action = TileActions[found.spriteId];
+        if (!action) return;
+
+        const options = [];
+        if (action.look) options.push("Olhar");
+        if (action.use?.allowed) options.push("Usar");
+
+        // 🔒 REGRA FINAL: se não tem opção, nem abre
+        if (options.length === 0) return;
+
+        this.interaction.open = true;
+        this.interaction.tile = found.tile;
+        this.interaction.x = found.x;
+        this.interaction.y = found.y;
+        this.interaction.spriteId = found.spriteId; // 🔹 ESSENCIAL
+        this.interaction.index = 0;
+        this.interaction.options = options;
+    }
+
     executeInteraction() {
         const option = this.interaction.options[this.interaction.index];
-        const { x, y, tile } = this.interaction;
-
-        const spriteId = Number(tile.ground[tile.ground.length - 1]);
+        const { x, y, tile, spriteId } = this.interaction;
 
         const action = TileActions[spriteId];
+        if (!action) {
+            this.closeInteractionMenu();
+            return;
+        }
 
-        if (option === "Olhar" && action.look) {
+        const layer = action.layer || "ground";
+
+        if (option === "Olhar" && typeof action.look === "function") {
             this.showMessage(action.look(tile));
         }
 
         if (option === "Usar" && action.use?.onUse) {
+
+            // 🔹 EXECUTA ANIMAÇÃO AUTOMÁTICA
+            if (Array.isArray(action.use.animationSprites)) {
+                this.animateTileSprite(
+                    tile,
+                    layer,
+                    action.use.animationSprites,
+                    180 // ms entre frames
+                );
+            }
+
+            // 🔹 EXECUTA A LÓGICA DO TILE
             action.use.onUse(this, x, y);
         }
 
         this.closeInteractionMenu();
     }
+
+
+    animateTileSprite(tile, layer, frames, interval = 200) {
+        if (!frames || frames.length === 0) return;
+
+        let i = 0;
+
+        const applyFrame = () => {
+            tile[layer][tile[layer].length - 1] = frames[i];
+            i++;
+
+            if (i < frames.length) {
+                setTimeout(applyFrame, interval);
+            }
+        };
+
+        applyFrame();
+    }
+
 
     closeInteractionMenu() {
         this.interaction.open = false;
@@ -655,6 +733,65 @@ export default class Game {
         this.interaction.options = [];
         this.interaction.index = 0;
     }
+updateTileIdleAnimations(deltaMs) {
+    const px = Math.floor(this.player.x);
+    const py = Math.floor(this.player.y);
+
+    this._tileAnimTimers ??= {};
+
+    // define range máximo possível
+    const maxCheckRange = 20; // ou outro valor que faça sentido
+    for (let y = py - maxCheckRange; y <= py + maxCheckRange; y++) {
+        for (let x = px - maxCheckRange; x <= px + maxCheckRange; x++) {
+
+            const tile = this.map.getTile(x, y);
+            if (!tile) continue;
+
+            const ids = [...tile.ground, ...(tile.overlay || [])];
+
+            for (const id of ids) {
+                // acha ação
+                let action = TileActions[id];
+                if (!action) {
+                    for (const baseId in TileActions) {
+                        const anim = TileActions[baseId]?.idleAnimation;
+                        if (anim && anim.frames.includes(id)) {
+                            action = TileActions[baseId];
+                            break;
+                        }
+                    }
+                }
+
+                const anim = action?.idleAnimation;
+                if (!anim) continue;
+
+                // usa o range da animação ou padrão
+                const range = anim.range ?? 2;
+                const dist = Math.hypot(px - x, py - y);
+                if (dist > range) continue;
+
+                const key = `${x},${y},${id}`;
+                const timer = this._tileAnimTimers[key] ?? 0;
+                const now = performance.now();
+                if (now - timer < anim.interval) continue;
+                this._tileAnimTimers[key] = now;
+
+                const layer = action.layer || "ground";
+                const arr = tile[layer];
+                const idx = arr.lastIndexOf(id);
+                if (idx === -1) continue;
+
+                const frames = anim.frames;
+                const current = frames.indexOf(id);
+                const next = frames[(current + 1) % frames.length];
+
+                arr[idx] = next;
+            }
+        }
+    }
+}
+
+
 
     handleTileInteraction(tile, x, y) {
         if (!tile || !tile.ground || tile.ground.length === 0) return;
@@ -673,24 +810,6 @@ export default class Game {
         if (action.use?.allowed) {
             this.useTile(spriteId, action, x, y);
         }
-    }
-
-
-
-    openInteractionMenu(found) {
-        const action = TileActions[found.spriteId];
-
-        this.interaction.open = true;
-        this.interaction.tile = found.tile;
-        this.interaction.x = found.x;
-        this.interaction.y = found.y;
-        this.interaction.index = 0;
-
-        const options = [];
-        if (action.look) options.push("Olhar");
-        if (action.use?.allowed) options.push("Usar");
-
-        this.interaction.options = options;
     }
 
     updateInteractionMenu() {
@@ -756,5 +875,40 @@ export default class Game {
         // 🔹 Força render imediato
         this.renderer.draw(this.map, this.player, this.wildMons, this.activeFollower, this.inventory,  this.interaction,this.messageBox,this.cameraX, this.cameraY);
     }
+
+    checkTileTriggers() {
+        const px = Math.floor(this.player.x);
+        const py = Math.floor(this.player.y);
+
+        const tile = this.map.getTile(px, py);
+        if (!tile) return;
+
+        // verifica GROUND
+        const ids = [...tile.ground, ...(tile.overlay || [])];
+
+        for (const id of ids) {
+            const action = TileActions[id];
+            if (!action) continue;
+
+            // 🔹 PORTAL
+            if (action.teleportTo) {
+                const [tx, ty, tz] = action.teleportTo;
+
+                // evita loop infinito
+                if (this._teleportLock) return;
+                this._teleportLock = true;
+
+                this.loadMap(tz, tx, ty);
+
+                // libera o lock após pequeno delay
+                setTimeout(() => {
+                    this._teleportLock = false;
+                }, 300);
+
+                return;
+            }
+        }
+    }
+
 
 }

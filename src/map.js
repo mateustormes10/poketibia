@@ -1,3 +1,5 @@
+
+import { TileActions } from "./TileActions.js";
 export default class MapLoader {
     constructor(size) {
         this.size = size;
@@ -40,23 +42,43 @@ export default class MapLoader {
         }
 
         // Remove colchetes e quebra itens
-        const raw = cell.slice(1, -1).split(",");
+        const raw = splitOutsideParens(cell.slice(1, -1));
+
         const tile = {
-            ground: [],
+            ground: [],    // chão
+            overlay: [],   // árvores, postes, topo
             entities: [],
             S: false,
             walkable: true,
             up: null,
-            down: null
+            down: null,
+            data: {}
         };
 
 
         for (let item of raw) {
             item = item.trim();
 
-            // Número → sprite de chão
-            if (!isNaN(parseInt(item))) {
-                tile.ground.push(parseInt(item));
+            const match = item.match(/^(\d+)(?:\(([^)]*)\))?$/);
+
+            if (match) {
+                const id = parseInt(match[1]);
+                const param = match[2]; // pode ser undefined
+
+                const action = TileActions?.[id];
+                const layer = action?.layer || "ground";
+
+                if (layer === "overlay") {
+                    tile.overlay.push(id);
+                } else {
+                    tile.ground.push(id);
+                }
+
+                // 🔹 salva parâmetro no tile
+                if (param !== undefined) {
+                    tile.data[id] = param;
+                }
+
                 continue;
             }
 
@@ -105,7 +127,6 @@ export default class MapLoader {
         return tile;
     }
 
-
     getTile(x, y) {
         if (x < 0 || y < 0 || x >= this.size || y >= this.size) return null;
         return this.grid[y][x];
@@ -135,4 +156,25 @@ export default class MapLoader {
     }
 
 
+}
+
+function splitOutsideParens(str) {
+    const result = [];
+    let current = "";
+    let depth = 0;
+
+    for (const char of str) {
+        if (char === "(") depth++;
+        if (char === ")") depth--;
+
+        if (char === "," && depth === 0) {
+            result.push(current.trim());
+            current = "";
+        } else {
+            current += char;
+        }
+    }
+
+    if (current) result.push(current.trim());
+    return result;
 }
