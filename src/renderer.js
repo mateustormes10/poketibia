@@ -151,7 +151,8 @@ export default class Renderer {
             }
         }
        
-        this._drawPlayerComposed(player);
+        // Player local
+        this._drawPlayerComposed(player, cameraX, cameraY);
 
         // =====================================
         // OVERLAY (árvores, casas, topo)
@@ -185,8 +186,8 @@ export default class Renderer {
                 const p = otherPlayers[playerName];
                 if (!p) continue;
 
-                const screenX = (p.x - cameraX) * this.tileSize;
-                const screenY = (p.y - cameraY) * this.tileSize;
+                const screenX = (Math.floor(p.x) - cameraX) * this.tileSize;
+                const screenY = (Math.floor(p.y) - cameraY) * this.tileSize;
 
                 // sprite com fallback
                 const sprite = p.sprite ?? Sprites.get(36204);
@@ -451,24 +452,25 @@ this._drawComposedAt(playerLike, px, py);
     }
 
     // desenha o player composto no centro da view (3 partes simultâneas)
-    _drawPlayerComposed(player) {
-        const centerTileX = Math.floor(this.viewWidth / 2);
-        const centerTileY = Math.floor(this.viewHeight / 2);
-        const px = centerTileX * this.tileSize;
-        const py = centerTileY * this.tileSize;
+    _drawPlayerComposed(p, cameraX, cameraY) {
+        const screenX = (Math.floor(p.x) - cameraX) * this.tileSize;
+        const screenY = (Math.floor(p.y) - cameraY) * this.tileSize;
 
-        this._drawComposedAt(player, px, py);
 
-        // Nome
-        if (player.name) {
+        const sprite = p.sprite ?? Sprites.get(p.spriteId);
+        if (sprite?.complete) {
+            this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
+        }
+
+        if (p.name) {
             this.ctx.fillStyle = "white";
             this.ctx.strokeStyle = "black";
             this.ctx.font = "14px Arial";
             this.ctx.lineWidth = 3;
-
-            this.ctx.strokeText(player.name, px - 20, py - 8);
-            this.ctx.fillText(player.name, px - 20, py - 8);
+            this.ctx.strokeText(p.name, screenX-5, screenY-8);
+            this.ctx.fillText(p.name, screenX-5, screenY-8);
         }
     }
+
 
 }
