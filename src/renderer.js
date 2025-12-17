@@ -181,31 +181,36 @@ export default class Renderer {
 
 // Desenhar outros players
 if (otherPlayers) {
-    for (const playerId in otherPlayers) {
-        const p = otherPlayers[playerId];
+    for (const playerName in otherPlayers) {
+        const p = otherPlayers[playerName];
         if (!p) continue;
 
         const screenX = (p.x - cameraX) * this.tileSize;
         const screenY = (p.y - cameraY) * this.tileSize;
 
-        // Usa sprite do player ou algum padrão
-        const sprite = p.sprite || Sprites.get( 36204 );
+        // sprite com fallback
+        const sprite = p.sprite ?? Sprites.get(36204);
         if (sprite && sprite.complete) {
             this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
         }
 
-        // Desenhar nome
+        // desenhar nome
         if (p.name) {
-            this.ctx.fillStyle = "white";
+            this.ctx.fillStyle = "green";
             this.ctx.strokeStyle = "black";
             this.ctx.font = "14px Arial";
             this.ctx.lineWidth = 3;
+            this.ctx.strokeText(p.name, screenX - 10, screenY - 8);
+            this.ctx.fillText(p.name, screenX - 10, screenY - 8);
+        }
 
-            this.ctx.strokeText(p.name, screenX-10, screenY-8);
-            this.ctx.fillText(p.name, screenX-10, screenY-8);
+        // animação baseada no delta real (passar deltaMs do loop)
+        if (typeof p.updateAnimation === "function") {
+            p.updateAnimation(deltaMs / 1000);
         }
     }
 }
+
 
 
 

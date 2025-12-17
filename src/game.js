@@ -27,28 +27,17 @@ export default class Game {
         this.renderer = new Renderer(this.ctx, this.tileSize, this.viewWidth, this.viewHeight, this);
         this.map = new MapLoader(this.mapSize);
         
-
-        this.player = new Player(31, 25, "TormesBR"); // meio do mapa
+        this.player = null;
+        // this.player = new Player(31, 25, "TormesBR"); // meio do mapa
         // Time de Pokémon (apenas exemplo)
         this.party = [
             { name: "Staryu", spriteId: 50001 },
             { name: "Pikachu", spriteId: 50020 }
         ];
 
-        this.interaction = {
-            open: false,
-            tile: null,
-            x: 0,
-            y: 0,
-            options: [],
-            index: 0
-        };
+        this.interaction = { open: false, tile: null, x: 0, y: 0, options: [], index: 0 };
 
-        this.messageBox = {
-            text: "",
-            visible: false,
-            timer: 0
-        };
+        this.messageBox = { text: "", visible: false, timer: 0 };
 
         this.inventory = new Inventory(8, 4);
 
@@ -60,10 +49,12 @@ export default class Game {
         this.wildMons = [];
         this.input = new Input(this.canvas);
 
+        if(this.player){
+            // Posição da câmera, inicialmente igual à do player
+            this.cameraX = this.player.x;
+            this.cameraY = this.player.y;
+        }
 
-        // Posição da câmera, inicialmente igual à do player
-        this.cameraX = this.player.x;
-        this.cameraY = this.player.y;
     }
 
     updatePlayerFromWS(playersList) {
@@ -79,6 +70,46 @@ export default class Game {
             this.player.name = me.name;
         }
     }
+
+    // No Game.js
+updateOtherPlayersFromWS(playersList) {
+    this.wsClient.otherPlayers ??= {};
+
+    // Adiciona/atualiza players
+    for (const p of playersList) {
+        if (p.itsme === "yes") continue;
+
+        let playerObj = this.wsClient.otherPlayers[p.name];
+
+        if (!playerObj || !(playerObj instanceof Player)) {
+            playerObj = new Player(p.x, p.y, p.name);
+            playerObj.z = p.z ?? 3;
+
+            // sprite padrão caso não tenha
+            playerObj.sprite = Sprites.get(36204);
+
+            this.wsClient.otherPlayers[p.name] = playerObj;
+        } else {
+            // Atualiza posição e z
+            playerObj.x = p.x;
+            playerObj.y = p.y;
+            playerObj.z = p.z ?? playerObj.z;
+        }
+
+        // Atualiza nome (caso mude)
+        playerObj.name = p.name;
+    }
+
+    // Remove players desconectados
+    for (const key in this.wsClient.otherPlayers) {
+        if (!playersList.find(p => p.name === key)) {
+            delete this.wsClient.otherPlayers[key];
+        }
+    }
+}
+
+
+
 
 
     showMessage(text, durationMs = 2000) {
@@ -152,18 +183,19 @@ export default class Game {
 
 
     async start() {
+   
+
+        // Conectar WebSocket
+        try {
+            await this.wsClient.connect();
+            console.log("WebSocket conectado e autenticado!");
+        } catch (err) {
+            console.error("Falha ao conectar WebSocket:", err);
+        }
+        
         console.log("Carregando mapa:", `./assets/map_z${this.currentZ}.txt`);
          await this.map.load(`./assets/map_z${this.currentZ}.txt`);
         console.log("Mapa carregado!");
-
-        // Conectar WebSocket
-    try {
-        await this.wsClient.connect();
-        console.log("WebSocket conectado e autenticado!");
-    } catch (err) {
-        console.error("Falha ao conectar WebSocket:", err);
-    }
-
 
         // Spawna Pokémons definidos no mapa
         this.spawnMonstersFromMap();
@@ -512,10 +544,11 @@ export default class Game {
         if (!this._nearbyMonMenuEl) this.createNearbyMonMenu();
         const menu = this._nearbyMonMenuEl;
         menu.innerHTML = "";
-
+        
         const px = this.player.x;
         const py = this.player.y;
 
+        
         // Lista pokémons a até 20 tiles
         const nearby = this.wildMons.filter(m => {
             const dist = Math.hypot(m.x - px, m.y - py);
@@ -556,148 +589,137 @@ export default class Game {
     }
 
     loop() {
-        requestAnimationFrame(() => this.loop());
-        this.updateFollower();
-        this.updateNearbyMonMenuUI();
+        if(this.player){
+            requestAnimationFrame(() => this.loop());
+            this.updateFollower();
+            this.updateNearbyMonMenuUI();
 
-        if (this.input.isDown("i") && !this._invPressed) {
-            this.inventory.toggle();
-            this._invPressed = true;
-        }
-
-
-        if (!this.input.isDown("i")) {
-            this._invPressed = false;
-        }
-
-        if (this.inventory.visible) {
-            this.handleInventoryInput();
-        }
-
-        // Envia posição atual para o servidor (ex.: a cada 100ms)
-// Envia posição do player apenas se mudou e a cada 100ms
-this._lastMoveSend ??= 0;
-const nowt = performance.now();
-if (nowt - this._lastMoveSend > 100) {
-    if (this.player.x !== this._lastSentX || this.player.y !== this._lastSentY || this.currentZ !== this._lastSentZ) {
-        this.wsClient.move(this.player.x, this.player.y, this.currentZ);
-        this._lastSentX = this.player.x;
-        this._lastSentY = this.player.y;
-        this._lastSentZ = this.currentZ;
-    }
-    this._lastMoveSend = nowt;
-}
-
-
-
-
-
-
-
-
-
-        // delta ms aproximado entre frames
-        let nowTs = performance.now();
-        this._lastLoopTime = this._lastLoopTime || nowTs;
-        const deltaMs = Math.min(200, nowTs - this._lastLoopTime);
-        this._lastLoopTime = nowTs;
-
-        
-        // atualiza efeitos de skills
-        this.map.updateEffects(deltaMs);
-        this.player.updateAnimation(deltaMs / 1000);
-
-
-        // tick cooldowns do follower (se existir)
-        if (this.activeFollower) this.activeFollower.tickCooldowns(deltaMs);
-
-        // também tick nos wildMons individuais (se usar as skills neles)
-        for (const m of this.wildMons) {
-            if (typeof m.tickCooldowns === "function") m.tickCooldowns(deltaMs);
-        }
-
-        // atualiza a UI do menu periodicamente (ex.: 6x por segundo)
-        // evita redesenhar DOM toda hora se preferir otimizar
-        this._uiAcc = (this._uiAcc || 0) + deltaMs;
-        if (this._uiAcc >= 150) {
-            this.updateSkillMenuUI();
-            this._uiAcc = 0;
-        }
-
-        if (!this.interaction.open && this.input.isDown("v") && !this._vPressed) {
-            const found = this.getNearbyInteractableTile();
-            if (found) {
-                this.openInteractionMenu(found);
+            if (this.input.isDown("i") && !this._invPressed) {
+                this.inventory.toggle();
+                this._invPressed = true;
             }
-            this._vPressed = true;
-        }
-        if (!this.input.isDown("v")) this._vPressed = false;
-        this.updateInteractionMenu();
-        if (this.messageBox.visible) {
-            this.messageBox.timer -= deltaMs;
-            if (this.messageBox.timer <= 0) {
-                this.messageBox.visible = false;
-                this.messageBox.text = "";
+
+
+            if (!this.input.isDown("i")) {
+                this._invPressed = false;
             }
-        }
-this.updateTileIdleAnimations(deltaMs);
 
-        // Atualiza a posição do jogador e checa ações especiais
-        if (!this.interaction.open) {
-            const result = this.player.update(this.input, this.map, this.wildMons, this.activeFollower, this.currentZ);
+            if (this.inventory.visible) {
+                this.handleInventoryInput();
+            }
 
-            // após update do player
-            this.checkTileTriggers();
+            // Envia posição atual para o servidor (ex.: a cada 100ms)
+            // Envia posição do player apenas se mudou e a cada 100ms
+            this._lastMoveSend ??= 0;
+            const nowt = performance.now();
+            if (nowt - this._lastMoveSend > 100) {
+                if (this.player.x !== this._lastSentX || this.player.y !== this._lastSentY || this.currentZ !== this._lastSentZ) {
+                    this.wsClient.move(this.player.x, this.player.y, this.currentZ);
+                    this._lastSentX = this.player.x;
+                    this._lastSentY = this.player.y;
+                    this._lastSentZ = this.currentZ;
+                }
+                this._lastMoveSend = nowt;
+            }
 
-            if (result && result.action === "CHANGE_FLOOR") {
-            const targetZ = result.targetZ;
+            // delta ms aproximado entre frames
+            let nowTs = performance.now();
+            this._lastLoopTime = this._lastLoopTime || nowTs;
+            const deltaMs = Math.min(200, nowTs - this._lastLoopTime);
+            this._lastLoopTime = nowTs;
 
-            let spawnX = this.player.x;
-            let spawnY = this.player.y;
+            
+            // atualiza efeitos de skills
+            this.map.updateEffects(deltaMs);
+            this.player.updateAnimation(deltaMs / 1000);
 
-            for (let y = 0; y < this.map.size; y++) {
-                for (let x = 0; x < this.map.size; x++) {
-                    const t = this.map.getTile(x, y);
-                    if (!t) continue;
 
-                    // Se for o novo andar e tiver escada voltando para o andar anterior
-                    if ((t.up === this.currentZ && targetZ > this.currentZ) || 
-                        (t.down === this.currentZ && targetZ < this.currentZ)) {
-                        spawnX = x;
-                        spawnY = y;
-                        break;
-                    }
+            // tick cooldowns do follower (se existir)
+            if (this.activeFollower) this.activeFollower.tickCooldowns(deltaMs);
+
+            // também tick nos wildMons individuais (se usar as skills neles)
+            for (const m of this.wildMons) {
+                if (typeof m.tickCooldowns === "function") m.tickCooldowns(deltaMs);
+            }
+
+            // atualiza a UI do menu periodicamente (ex.: 6x por segundo)
+            // evita redesenhar DOM toda hora se preferir otimizar
+            this._uiAcc = (this._uiAcc || 0) + deltaMs;
+            if (this._uiAcc >= 150) {
+                this.updateSkillMenuUI();
+                this._uiAcc = 0;
+            }
+
+            if (!this.interaction.open && this.input.isDown("v") && !this._vPressed) {
+                const found = this.getNearbyInteractableTile();
+                if (found) {
+                    this.openInteractionMenu(found);
+                }
+                this._vPressed = true;
+            }
+            if (!this.input.isDown("v")) this._vPressed = false;
+            this.updateInteractionMenu();
+            if (this.messageBox.visible) {
+                this.messageBox.timer -= deltaMs;
+                if (this.messageBox.timer <= 0) {
+                    this.messageBox.visible = false;
+                    this.messageBox.text = "";
                 }
             }
+            this.updateTileIdleAnimations(deltaMs);
 
-            this.loadMap(targetZ, spawnX, spawnY);
-        }
-        }
+            // Atualiza a posição do jogador e checa ações especiais
+            if (!this.interaction.open) {
+                const result = this.player.update(this.input, this.map, this.wildMons, this.activeFollower, this.currentZ);
 
-        
+                // após update do player
+                this.checkTileTriggers();
 
+                if (result && result.action === "CHANGE_FLOOR") {
+                    const targetZ = result.targetZ;
 
+                    let spawnX = this.player.x;
+                    let spawnY = this.player.y;
 
-        // Movimentação limitada dos Pokémons (a cada 2 segundos)
-        const now = performance.now();
-        if (!this._lastAi || now - this._lastAi > 200) {
-            for (let mon of this.wildMons) {
-                mon.updateAI(this.map, 0.01);
+                    for (let y = 0; y < this.map.size; y++) {
+                        for (let x = 0; x < this.map.size; x++) {
+                            const t = this.map.getTile(x, y);
+                            if (!t) continue;
+
+                            // Se for o novo andar e tiver escada voltando para o andar anterior
+                            if ((t.up === this.currentZ && targetZ > this.currentZ) || 
+                                (t.down === this.currentZ && targetZ < this.currentZ)) {
+                                spawnX = x;
+                                spawnY = y;
+                                break;
+                            }
+                        }
+                    }
+
+                    this.loadMap(targetZ, spawnX, spawnY);
+                }
             }
-            this._lastAi = now;
+            // Movimentação limitada dos Pokémons (a cada 2 segundos)
+            const now = performance.now();
+            if (!this._lastAi || now - this._lastAi > 200) {
+                for (let mon of this.wildMons) {
+                    mon.updateAI(this.map, 0.01);
+                }
+                this._lastAi = now;
+            }
+
+            // Atualiza a posição da câmera (centra a visão no jogador)
+            this.cameraX = Math.floor(
+                Math.max(0, Math.min(this.player.x - Math.floor(this.viewWidth / 2), this.mapSize - this.viewWidth))
+            );
+
+            this.cameraY = Math.floor(
+                Math.max(0, Math.min(this.player.y - Math.floor(this.viewHeight / 2), this.mapSize - this.viewHeight))
+            );
+
+            // Renderização com base na posição da câmera
+            this.renderer.draw(this.map, this.player, this.wildMons,this.activeFollower,this.inventory,this.interaction,this.messageBox, this.cameraX, this.cameraY,this.wsClient.otherPlayers);
         }
-
-        // Atualiza a posição da câmera (centra a visão no jogador)
-        this.cameraX = Math.floor(
-            Math.max(0, Math.min(this.player.x - Math.floor(this.viewWidth / 2), this.mapSize - this.viewWidth))
-        );
-
-        this.cameraY = Math.floor(
-            Math.max(0, Math.min(this.player.y - Math.floor(this.viewHeight / 2), this.mapSize - this.viewHeight))
-        );
-
-        // Renderização com base na posição da câmera
-        this.renderer.draw(this.map, this.player, this.wildMons,this.activeFollower,this.inventory,this.interaction,this.messageBox, this.cameraX, this.cameraY,this.wsClient.otherPlayers);
     }
 
 

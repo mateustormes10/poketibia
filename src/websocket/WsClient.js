@@ -53,22 +53,31 @@ export default class WsClient {
 
             case "all_players":
                 this.otherPlayers = {};
+
                 if (msg.players) {
                     Object.values(msg.players).forEach(p => {
-                        const itsme = p.id === this.playerId ? "yes" : "no";
+                        if (p.id === this.playerId) return; // 🔥 REMOVE O PLAYER LOCAL
+
                         this.otherPlayers[p.id] = {
                             x: p.position.x,
                             y: p.position.y,
                             z: p.position.z,
                             name: p.name,
-                            itsme,
                             sprite: null
                         };
                     });
                 }
 
-                // Atualiza o player local
-                this.game.updatePlayerFromWS(Object.values(this.otherPlayers));
+                this.game.updatePlayerFromWS(
+                    Object.values(msg.players).map(p => ({
+                        x: p.position.x,
+                        y: p.position.y,
+                        z: p.position.z,
+                        name: p.name,
+                        itsme: p.id === this.playerId ? "yes" : "no"
+                    }))
+                );
+
 
                 console.log(
                     "[WS] Lista de players conectados (exceto você):",
@@ -76,38 +85,51 @@ export default class WsClient {
                 );
                 break;
 
-            case "movement":
-                if (msg.playerId !== this.playerId) {
-                    if (!this.otherPlayers[msg.playerId]) {
-                        this.otherPlayers[msg.playerId] = {
-                            x: msg.x,
-                            y: msg.y,
-                            z: msg.z,
-                            name: msg.name || "Unknown",
-                            sprite: null
-                        };
-                    } else {
-                        this.otherPlayers[msg.playerId].x = msg.x;
-                        this.otherPlayers[msg.playerId].y = msg.y;
-                        this.otherPlayers[msg.playerId].z = msg.z;
-                    }
-                    // 🔹 AVISO PARA REDRAW
-                    if (this.game.renderer) {
-                        this.game.renderer.draw(
-                            this.game.map,
-                            this.game.player,
-                            this.game.wildMons,
-                            this.game.activeFollower,
-                            this.game.inventory,
-                            this.game.interaction,
-                            this.game.messageBox,
-                            this.game.cameraX,
-                            this.game.cameraY,
-                            this.otherPlayers
-                        );
-                    }
-                }
-                break;
+            case "player_move": {
+    const { playerId, position } = msg;
+    if (playerId === this.playerId) return;
+
+    if (!position) {
+        console.warn("[WS] player_move sem position:", msg);
+        return;
+    }
+
+    if (!this.otherPlayers[playerId]) {
+        this.otherPlayers[playerId] = {
+            x: position.x,
+            y: position.y,
+            z: position.z,
+            name: "Unknown",
+            sprite: null
+        };
+    } else {
+        this.otherPlayers[playerId].x = position.x;
+        this.otherPlayers[playerId].y = position.y;
+        this.otherPlayers[playerId].z = position.z;
+    }
+
+    console.log(
+        `[WS] Movimento recebido de ${playerId}: x=${position.x}, y=${position.y}, z=${position.z}`
+    );
+
+    if (this.game.renderer) {
+        this.game.renderer.draw(
+            this.game.map,
+            this.game.player,
+            this.game.wildMons,
+            this.game.activeFollower,
+            this.game.inventory,
+            this.game.interaction,
+            this.game.messageBox,
+            this.game.cameraX,
+            this.game.cameraY,
+            this.otherPlayers
+        );
+    }
+    break;
+}
+
+
 
             case "player_disconnect":
                 delete this.otherPlayers[msg.playerId];
