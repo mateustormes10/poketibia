@@ -1,37 +1,89 @@
 import { updatePlayerPosition } from "../../models/PlayerModel.js";
-import { getPlayer, getNearbyPlayers } from "../state/players.js";
+import { getPlayer, getNearbyPlayers, getAllPlayers } from "../state/players.js";
 import { sendError } from "../utils/errorHandler.js";
-
+import { gameMap } from "../state/map.js"; // ou onde seu mapa estiver
+import { getAllPokemons } from "../state/pokemons.js";
 export async function handleMovement(ws, payload) {
     const player = getPlayer(ws);
-    if (!player) {
-        sendError(ws, "Not authenticated");
-        console.log("[Movement] Player não autenticado");
+    if (!player) return;
+
+    const { x, y, z } = payload;
+
+    const tx = Math.floor(x);
+    const ty = Math.floor(y);
+    const tz = z;
+
+    // 1. MAPA
+    // 1. MAPA
+    const tile = gameMap.getTile(tx, ty, tz);
+    if (!tile) {
+        console.log(`[MOVE] Tile inexistente: x=${tx}, y=${ty}, z=${tz}`);
+        ws.send(JSON.stringify({
+            action: "move_denied",
+            reason: "tile_not_found",
+            x: tx, y: ty, z: tz
+        }));
         return;
     }
 
-    const { x, y, z } = payload;
-    console.log(`[Movement] Atualizando player ${player.id} para x=${x}, y=${y}, z=${z}`);
+    if (tile.walkable === false) {
+        console.log(`[MOVE] Tile bloqueado (N): x=${tx}, y=${ty}, z=${tz}`);
+        ws.send(JSON.stringify({
+            action: "move_denied",
+            reason: "blocked_tile",
+            x: tx, y: ty, z: tz
+        }));
+        return;
+    }
 
-    // Atualiza estado em memória
-    player.position = { x, y, z };
+
+    // 2. PLAYERS
+    for (const other of getAllPlayers().values()) {
+        const distance = 0.5; // tolerância de meio tile
+if (other.position.z === tz &&
+    Math.abs(other.position.x - x) < distance &&
+    Math.abs(other.position.y - y) < distance) {
+    ws.send(JSON.stringify({
+        action: "move_denied",
+        reason: "player_collision",
+        x, y, z: tz
+    }));
+    return;
+}
+    }
+
+
+    // 3. POKEMONS
+    for (const mon of Array.from(getAllPokemons())) {
+        if (!mon.alive) continue;
+        if (mon.position.z !== tz) continue;
+
+        if (Math.floor(mon.position.x) === tx &&
+            Math.floor(mon.position.y) === ty) {
+            console.log(`[MOVE] Colisão com Pokémon: ${mon.id} - x=${tx}, y=${ty}, z=${tz}`);
+            ws.send(JSON.stringify({
+                action: "move_denied",
+                reason: "pokemon_collision",
+                x: tx, y: ty, z: tz
+            }));
+            return;
+        }
+    }
+
+console.log(`[MOVE] Player ${player.id} movido para x=${x}, y=${y}, z=${z}`);
+
+    // 4. APLICA
+    player.position.x = x;
+    player.position.y = y;
+    player.position.z = z;
     player.lastAction = Date.now();
 
-    // Persiste no banco (opcional)
-    await updatePlayerPosition(player.id, x, y, z);
-
-    // Notifica jogadores próximos
-    const nearbyPlayers = getNearbyPlayers(player);
-    console.log(`[Movement] Notificando ${nearbyPlayers.length} players próximos`);
-
-    nearbyPlayers.forEach((nearbyPlayer) => {
-        if (nearbyPlayer.ws && nearbyPlayer.ws.readyState === 1) { // 1 = OPEN
-            nearbyPlayer.ws.send(JSON.stringify({
-                action: "player_move",
-                playerId: player.id,
-                position: player.position
-            }));
-            console.log(`[Movement] Enviado player_move para player ${nearbyPlayer.id}`);
-        }
-    });
+    // 5. NOTIFICA
+    for (const p of getAllPlayers().values()) {
+    p.ws?.send(JSON.stringify({
+        action: "player_move",
+        playerId: player.id,
+        position: player.position
+    }));
+}
 }

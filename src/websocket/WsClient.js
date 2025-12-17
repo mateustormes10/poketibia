@@ -5,6 +5,9 @@ export default class WsClient {
         this.token = token;
         this.ws = null;
         this.playerId = null;
+        this.pendingMoves = {}; // { playerId: { x, y, z } }
+this.syncRequested = false;
+
         this.otherPlayers = {}; // { playerId: { x, y, z, name, sprite } }
     }
 
@@ -66,8 +69,17 @@ export default class WsClient {
                             itsme: p.id === this.playerId ? "yes" : "no",
                             spriteType: p.spriteType || "default"
                         };
-                        
                     });
+
+                         Object.entries(this.pendingMoves).forEach(([id, pos]) => {
+                            if (this.otherPlayers[id]) {
+                                this.otherPlayers[id].x = pos.x;
+                                this.otherPlayers[id].y = pos.y;
+                                this.otherPlayers[id].z = pos.z;
+                            }
+                        });
+
+                        this.pendingMoves = {};
                 }
 
                 this.game.updatePlayerFromWS(
@@ -91,46 +103,25 @@ export default class WsClient {
             case "player_move": {
                 const { playerId, position } = msg;
                 if (playerId === this.playerId) return;
+                if (!position) return;
 
-                if (!position) {
-                    console.warn("[WS] player_move sem position:", msg);
+                if (!this.otherPlayers[playerId]) {
+                    this.pendingMoves[playerId] = position;
+
+                    // 🔥 PEDE SINCRONIZAÇÃO
+                    if (!this.syncRequested) {
+                        this.syncRequested = true;
+                        this.send("request_all_players");
+                    }
                     return;
                 }
 
-                if (!this.otherPlayers[playerId]) {
-                    this.otherPlayers[playerId] = {
-                        x: position.x,
-                        y: position.y,
-                        z: position.z,
-                        name: "Unknown",
-                        sprite: null
-                    };
-                } else {
-                    this.otherPlayers[playerId].x = position.x;
-                    this.otherPlayers[playerId].y = position.y;
-                    this.otherPlayers[playerId].z = position.z;
-                }
-
-                console.log(
-                    `[WS] Movimento recebido de ${playerId}: x=${position.x}, y=${position.y}, z=${position.z}`
-                );
-
-                if (this.game.renderer) {
-                    this.game.renderer.draw(
-                        this.game.map,
-                        this.game.player,
-                        this.game.wildMons,
-                        this.game.activeFollower,
-                        this.game.inventory,
-                        this.game.interaction,
-                        this.game.messageBox,
-                        this.game.cameraX,
-                        this.game.cameraY,
-                        this.otherPlayers
-                    );
-                }
+                this.otherPlayers[playerId].x = position.x;
+                this.otherPlayers[playerId].y = position.y;
+                this.otherPlayers[playerId].z = position.z;
                 break;
             }
+
 
 
 

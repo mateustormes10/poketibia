@@ -52,7 +52,7 @@ export class TestClient {
         await this.wait(500); // aguarda resposta
     }
 
-    async move(x, y, z = 7) {
+    async move(x, y, z = 3) {
         this.send("movement", { playerId: this.playerId, x, y, z });
         await this.wait(300);
     }

@@ -1,31 +1,25 @@
 
+const playersByWs = new Map();   // ws -> player
+const playersById = new Map();   // id -> player
 
-function isNearby(playerState, otherPlayerState) {
-    // Aqui você define a lógica de proximidade, usando coordenadas (x, y, z)
-    const distance = calculateDistance(playerState, otherPlayerState);
-    return distance <= 20; // Proximidade de 20 sqm
-}
-
-function calculateDistance(player1, player2) {
-    // Calcula a distância entre dois jogadores
-    return Math.sqrt(Math.pow(player1.x - player2.x, 2) + Math.pow(player1.y - player2.y, 2));
-}
-
-const players = new Map();
 
 /**
  * Adiciona player ao estado do servidor
  */
 export function registerPlayer(ws, player) {
-    players.set(ws, {
+    const state = {
         id: player.id,
         name: player.name,
         position: { x: 20, y: 20, z: 3 },
-        spriteId: player.spriteId,  // ID do sprite do jogador
+        spriteId: player.spriteId,
         lastAction: Date.now(),
-        ws // guardando o ws dentro do objeto facilita notificações
-    });
+        ws
+    };
+
+    playersByWs.set(ws, state);
+    playersById.set(player.id, state);
 }
+
 
 /**
  * Atualiza posição ou estado do player
@@ -41,29 +35,31 @@ export function updatePlayerState(playerId, updates) {
 
 // Remove player
 export function removePlayer(ws) {
-    players.delete(ws);
+    const player = playersByWs.get(ws);
+    if (!player) return;
+
+    playersById.delete(player.id);
+    playersByWs.delete(ws);
 }
 
 // Retorna player por WebSocket
 export function getPlayer(ws) {
-    return players.get(ws);
+    return playersByWs.get(ws);
 }
-export function getPlayerById(playerId) {
-    for (const player of players.values()) {
-        if (player.id === playerId) return player;
-    }
-    return null;
+export function getPlayerById(id) {
+    return playersById.get(id);
 }
 
 // Retorna todos os players
 export function getAllPlayers() {
-    return players;
+    return playersById; // << ITERÁVEL LIMPO
 }
 
 // Busca players próximos
 export function getNearbyPlayers(sourcePlayer, range = 20) {
     const result = [];
-    for (const player of players.values()) {
+
+    for (const player of playersById.values()) {
         if (player.id === sourcePlayer.id) continue;
         if (player.position.z !== sourcePlayer.position.z) continue;
 
@@ -71,9 +67,10 @@ export function getNearbyPlayers(sourcePlayer, range = 20) {
         const dy = Math.abs(player.position.y - sourcePlayer.position.y);
 
         if (Math.max(dx, dy) <= range) {
-            result.push(player); // agora retornamos apenas o player, ws incluso dentro
+            result.push(player);
         }
     }
+
     return result;
 }
 // Remove players inativos
