@@ -11,7 +11,7 @@ export function registerPlayer(ws, player) {
         id: player.id,
         name: player.name,
         position: { x: 20, y: 20, z: 3 },
-        spriteId: player.spriteId,
+        spriteId: player.spriteId ?? '14498', // fallback
         lastAction: Date.now(),
         ws
     };

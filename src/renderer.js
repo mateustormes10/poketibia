@@ -190,7 +190,20 @@ export default class Renderer {
                 const screenY = (Math.floor(p.y) - cameraY) * this.tileSize;
 
                 // sprite com fallback
-                const sprite = p.sprite ?? Sprites.get(36204);
+let spriteId = p.spriteId;
+
+// converte string numérica para número
+if (!isNaN(spriteId)) spriteId = Number(spriteId);
+
+// fallback
+if (!spriteId) spriteId = "default";
+
+const sprite = Sprites.get(spriteId);
+if (sprite?.complete) this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
+
+
+console.log("Renderizando player", p.name, p.spriteId, sprite?.complete);
+
                 if (sprite && sprite.complete) {
                     this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
                 }
@@ -453,24 +466,27 @@ this._drawComposedAt(playerLike, px, py);
 
     // desenha o player composto no centro da view (3 partes simultâneas)
     _drawPlayerComposed(p, cameraX, cameraY) {
-        const screenX = (Math.floor(p.x) - cameraX) * this.tileSize;
-        const screenY = (Math.floor(p.y) - cameraY) * this.tileSize;
+    const screenX = (Math.floor(p.x) - cameraX) * this.tileSize;
+    const screenY = (Math.floor(p.y) - cameraY) * this.tileSize;
 
-
-        const sprite = p.sprite ?? Sprites.get(p.spriteId);
-        if (sprite?.complete) {
-            this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
-        }
-
-        if (p.name) {
-            this.ctx.fillStyle = "white";
-            this.ctx.strokeStyle = "black";
-            this.ctx.font = "14px Arial";
-            this.ctx.lineWidth = 3;
-            this.ctx.strokeText(p.name, screenX-5, screenY-8);
-            this.ctx.fillText(p.name, screenX-5, screenY-8);
-        }
+    const sprite = Sprites.get(p.spriteId);
+    if (sprite?.complete) {
+        this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
     }
+
+    if (p.name) {
+        this.ctx.fillStyle = "white";
+        this.ctx.strokeStyle = "black";
+        this.ctx.font = "14px Arial";
+        this.ctx.lineWidth = 3;
+        this.ctx.strokeText(p.name, screenX - 5, screenY - 8);
+        this.ctx.fillText(p.name, screenX - 5, screenY - 8);
+    }
+}
+
+
+
+
 
 
 }

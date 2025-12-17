@@ -45,8 +45,9 @@ export async function createPlayer({
             posx,
             posy,
             posz,
-            conditions
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            conditions,
+            lookaddons
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const params = [
@@ -64,7 +65,8 @@ export async function createPlayer({
         20,            // posx
         20,            // posy
         3,              // posz
-        Buffer.alloc(0) // conditions (BLOB obrigatório)
+        Buffer.alloc(0), // conditions (BLOB obrigatório)
+        "default"
     ];
 
     const result = await query(sql, params);
@@ -77,6 +79,16 @@ export async function updatePlayerPosition(id, x, y) {
         [x, y, id]
     );
 }
+
+export async function updatePlayerPositionAndSprite(id, x, y, z, spriteId = 'default') {
+    await query(
+        `UPDATE players
+         SET posx = ?, posy = ?, posz = ?, lookaddons = ?
+         WHERE id = ?`,
+        [x, y, z, spriteId, id]
+    );
+}
+
 
 export async function authenticatePlayer(accountId) {
     const rows = await query(

@@ -52,10 +52,11 @@ export class TestClient {
         await this.wait(500); // aguarda resposta
     }
 
-    async move(x, y, z = 3) {
-        this.send("movement", { playerId: this.playerId, x, y, z });
+    async move(x, y, z = 3, spriteId) {
+        this.send("movement", { playerId: this.playerId, x, y, z, spriteId });
         await this.wait(300);
     }
+
 
     async requestAllPlayers() {
         this.send("request_all_players");

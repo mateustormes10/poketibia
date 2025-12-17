@@ -1,3 +1,20 @@
+import { SpritePlayerList } from "../SpritePlayerList.js";
+
+/**
+ * Garante que o spriteId seja válido a partir do tipo e direção do player
+ * @param {string} type - tipo do player (ex: "default", "warriorMale")
+ * @param {string} direction - "up", "down", "left", "right"
+ * @returns {number} - ID da sprite
+ */
+export function getValidSpriteId(type = "default", direction = "down") {
+    const spriteType = SpritePlayerList[type] || SpritePlayerList.default;
+    const dir = spriteType[direction] || spriteType.down;
+    const id = dir?.[0]?.[0]; // pega o 0,0
+
+    // só usa fallback se id for null ou undefined
+    return (id !== null && id !== undefined) ? id : SpritePlayerList.default.down[0][0];
+}
+
 export default class WsClient {
     constructor(game, url = "ws://localhost:8080", token) {
         this.game = game;
@@ -67,7 +84,7 @@ this.syncRequested = false;
                             z: p.position.z,
                             name: p.name,
                             itsme: p.id === this.playerId ? "yes" : "no",
-                            spriteType: p.spriteType || "default"
+                            spriteId: p.spriteId  // pega exatamente do backend
                         };
                     });
 
@@ -101,14 +118,12 @@ this.syncRequested = false;
                 break;
 
             case "player_move": {
-                const { playerId, position } = msg;
+                const { playerId, position, spriteId } = msg;
                 if (playerId === this.playerId) return;
                 if (!position) return;
 
                 if (!this.otherPlayers[playerId]) {
                     this.pendingMoves[playerId] = position;
-
-                    // 🔥 PEDE SINCRONIZAÇÃO
                     if (!this.syncRequested) {
                         this.syncRequested = true;
                         this.send("request_all_players");
@@ -119,8 +134,16 @@ this.syncRequested = false;
                 this.otherPlayers[playerId].x = position.x;
                 this.otherPlayers[playerId].y = position.y;
                 this.otherPlayers[playerId].z = position.z;
+                
+                // 🔹 mantém o sprite do backend
+                if (spriteId != null) {
+                    this.otherPlayers[playerId].spriteId = spriteId;
+                } else {
+                    this.otherPlayers[playerId].spriteId = getValidSpriteId(msg.spriteType || "default", "down");
+                }
                 break;
             }
+
 
 
 
@@ -139,10 +162,28 @@ this.syncRequested = false;
         }
     }
 
-    move(x, y, z) {
+    move(x, y, z, spriteId) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-        console.log(`[WS] Enviando posição: x=${x.toFixed(2)}, y=${y.toFixed(2)}, z=${z}`); // <-- log adicionado
-        this.send("movement", { playerId: this.playerId, x, y, z });
+
+        const realSpriteId = spriteId || this.game.player?.spriteId || SpritePlayerList.default.down[0][0];
+
+        console.log(`[WS] Enviando posição: x=${x.toFixed(2)}, y=${y.toFixed(2)}, z=${z}, sprite=${realSpriteId}`);
+        this.send("movement", { playerId: this.playerId, x, y, z, spriteId: realSpriteId });
+
+        // Atualiza localmente o player usando o nome correto e sprite real
+        const localPlayer = {
+            x,
+            y,
+            z,
+            spriteId: realSpriteId,
+            name: this.game.player?.name || "Jogador",
+            itsme: "yes"
+        };
+
+        this.game.updatePlayerFromWS([localPlayer]);
     }
+
+
+
 
 }

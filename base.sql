@@ -78,6 +78,10 @@ CREATE TABLE players (
         ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+ALTER TABLE players
+MODIFY COLUMN lookaddons VARCHAR(50) NOT NULL DEFAULT 'default';
+
+
 -- ======================
 -- VIP LIST
 -- ======================

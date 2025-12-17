@@ -1,8 +1,9 @@
-import { updatePlayerPosition } from "../../models/PlayerModel.js";
 import { getPlayer, getNearbyPlayers, getAllPlayers } from "../state/players.js";
 import { sendError } from "../utils/errorHandler.js";
 import { gameMap } from "../state/map.js"; // ou onde seu mapa estiver
 import { getAllPokemons } from "../state/pokemons.js";
+import { updatePlayerPositionAndSprite } from "../../models/PlayerModel.js";
+
 export async function handleMovement(ws, payload) {
     const player = getPlayer(ws);
     if (!player) return;
@@ -78,12 +79,21 @@ console.log(`[MOVE] Player ${player.id} movido para x=${x}, y=${y}, z=${z}`);
     player.position.z = z;
     player.lastAction = Date.now();
 
+    // se vier no payload, atualiza o sprite do player
+if (payload.spriteId) {
+    player.spriteId = payload.spriteId;
+}
+
+    // Salva posição e spriteId no banco
+await updatePlayerPositionAndSprite(player.id, x, y, z, player.spriteId ?? '14498');
+
     // 5. NOTIFICA
     for (const p of getAllPlayers().values()) {
     p.ws?.send(JSON.stringify({
         action: "player_move",
         playerId: player.id,
-        position: player.position
+        position: player.position,
+        spriteId: player.spriteId ?? "default"  // fallback
     }));
 }
 }

@@ -1,7 +1,7 @@
 import { TestClient } from "./TestClient.js";
 
 const tokens = [
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZ3JvdXBfaWQiOjQsImlhdCI6MTc2NTkwNzYyNCwiZXhwIjoxNzY1OTk0MDI0fQ._wHOakh3pBFlFO_fuc4qreRcBUCioJNvTetQCgbeARM", // substitua pelo token real do Player1
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZ3JvdXBfaWQiOjQsImlhdCI6MTc2NTk5NDMwMiwiZXhwIjoxNzY2MDgwNzAyfQ.81F0TRk1uDKtbYp_cy4f9s0ODNosZIF9fupHFWTe6D4",
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MywiZ3JvdXBfaWQiOjEsImlhdCI6MTc2NTkxNzg0OSwiZXhwIjoxNzY2MDA0MjQ5fQ.kZEAepwXvdLrXwQAvYVqz-RaoRe4fSh2SYO_dRd3rc4", // substitua pelo token real do Player2
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwiZ3JvdXBfaWQiOjEsImlhdCI6MTc2NTk4NjAxMywiZXhwIjoxNzY2MDcyNDEzfQ.22-kzokQqZZ_VEkbswtjJxyTXf5bQnm9DVFRwy9exgY", // substitua pelo token real do Player3
 ];
@@ -36,11 +36,21 @@ const tokens = [
     await clients[0].move(15, 15); // tile S
 
     console.log("\n=== TESTE DE COLISÃO ENTRE PLAYERS ===");
-await clients[0].move(20, 20); // Player1
-await clients[1].move(20, 20); // Player2 tenta ir para o mesmo tile
+    await clients[0].move(20, 20); // Player1
+    await clients[1].move(20, 20); // Player2 tenta ir para o mesmo tile
 
-console.log("\n=== TESTE DE COLISÃO COM POKÉMON ===");
-await clients[0].move(25, 25); // deve ser negado
+    console.log("\n=== TESTE DE COLISÃO COM POKÉMON ===");
+    await clients[0].move(25, 25); // deve ser negado
+
+
+    // Teste movimento com sprite summonerMale
+await clients[0].move(63, 63, 3, "36204");
+
+// Teste movimento com sprite mageMale
+await clients[1].move(64, 64, 3, "3474");
+
+// Teste movimento com sprite warriorMale
+await clients[2].move(65, 65, 3, "14508");
 
 
     console.log("\n=== REQUEST ALL PLAYERS ===");

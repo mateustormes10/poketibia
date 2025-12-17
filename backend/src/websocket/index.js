@@ -44,7 +44,8 @@ wss.on("connection", (ws) => {
                         id: player.id,
                         name: player.name,
                         position: player.position,
-                        lastAction: player.lastAction
+                        lastAction: player.lastAction,
+                        spriteId: player.spriteId ?? "default"  // fallback
                     };
                 }
                 ws.send(JSON.stringify({ action: "all_players", players: allPlayersObj }));
