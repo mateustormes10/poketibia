@@ -1,44 +1,30 @@
 import Entity from "./entity.js";
-
+import { SpritePlayerList } from "./SpritePlayerList.js";
 export default class Player extends Entity {
-    constructor(x, y, name = "Undefined") {
+    constructor(x, y, name = "Undefined", spriteType = "default") {
         super(x, y, 36204);
 
         this.name = name;
         this.speed = 0.1;
 
-        // Cada direção tem N grupos; cada grupo tem 3 partes: [center, left, top]
-        this.spriteList = {
-            up: [
-                [36192, 36193, 36194],
-                [36216, 36217, 36218],
-                [36240, 36241, 36242]
-            ],
-            down: [
-                [36204, 36205, 36206],
-                [36228, 36229, 36230],
-                [36252, 36253, 36254]
-            ],
-            left: [
-                [36210, 36211, 36212],
-                [36234, 36235, 36236],
-                [36258, 36259, 36260]
-            ],
-            right: [
-                [36198, 36199, 36200],
-                [36222, 36223, 36224],
-                [36246, 36247, 36248]
-            ]
-        };
+        this.setSpriteType(spriteType);
+    }
 
-        this.direction = "down";         // direção atual
-        this.currentGroup = 0;           // índice do grupo atual dentro de spriteList[direction]
-        this.animTimer = 0;              // acumulador de tempo para troca de grupo
-        this.animInterval = 0.15;         // tempo por grupo em segundos
+    setSpriteType(spriteType) {
+        const list = SpritePlayerList[spriteType] || SpritePlayerList.default;
+
+        this.spriteType = spriteType;
+        this.spriteList = list;
+
+        this.direction = "down";
+        this.currentGroup = 0;
+        this.animTimer = 0;
+        this.animInterval = 0.15;
         this.moving = false;
-        // usado apenas por compatibilidade (opcional)
+
         this.spriteId = this.spriteList.down[0][0];
     }
+
 
     update(input, map, entities, follower, currentZ) {
         let moved = false;
@@ -95,21 +81,16 @@ export default class Player extends Entity {
 
 
     // Atualiza o grupo (troca de conjunto 3-imagens) — deltaTime em segundos
-    updateAnimation(deltaTime) {
+    updateAnimation(delta) {
         if (!this.moving) return;
 
-        this.animTimer += deltaTime;
+        this.animTimer += delta;
         if (this.animTimer < this.animInterval) return;
-
         this.animTimer = 0;
 
         const groups = this.spriteList[this.direction];
-        if (!groups || groups.length === 0) return;
-
         this.currentGroup = (this.currentGroup + 1) % groups.length;
-
-        const group = this._getCurrentGroup();
-        if (group && group[0]) this.spriteId = group[0];
+        this.spriteId = groups[this.currentGroup][0];
     }
 
 
@@ -121,8 +102,6 @@ export default class Player extends Entity {
 
     // retorna as 3 partes (pode retornar menos se não existir)
     getCurrentSpriteParts() {
-        const g = this._getCurrentGroup();
-        if (!g) return [];
-        return g; // array [center, left, top]
+        return this.spriteList[this.direction][this.currentGroup];
     }
 }

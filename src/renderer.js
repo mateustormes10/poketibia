@@ -179,38 +179,46 @@ export default class Renderer {
             }
         }
 
-// Desenhar outros players
-if (otherPlayers) {
-    for (const playerName in otherPlayers) {
-        const p = otherPlayers[playerName];
-        if (!p) continue;
+        // Desenhar outros players
+        if (otherPlayers) {
+            for (const playerName in otherPlayers) {
+                const p = otherPlayers[playerName];
+                if (!p) continue;
 
-        const screenX = (p.x - cameraX) * this.tileSize;
-        const screenY = (p.y - cameraY) * this.tileSize;
+                const screenX = (p.x - cameraX) * this.tileSize;
+                const screenY = (p.y - cameraY) * this.tileSize;
 
-        // sprite com fallback
-        const sprite = p.sprite ?? Sprites.get(36204);
-        if (sprite && sprite.complete) {
-            this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
+                // sprite com fallback
+                const sprite = p.sprite ?? Sprites.get(36204);
+                if (sprite && sprite.complete) {
+                    this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
+                }
+
+                // desenhar nome
+                if (p.name) {
+                    this.ctx.fillStyle = "green";
+                    this.ctx.strokeStyle = "black";
+                    this.ctx.font = "14px Arial";
+                    this.ctx.lineWidth = 3;
+                    this.ctx.strokeText(p.name, screenX - 10, screenY - 8);
+                    this.ctx.fillText(p.name, screenX - 10, screenY - 8);
+                }
+
+                // animação baseada no delta real (passar deltaMs do loop)
+                if (typeof p.updateAnimation === "function") {
+                    p.updateAnimation(deltaMs / 1000);
+                }
+            }
         }
 
-        // desenhar nome
-        if (p.name) {
-            this.ctx.fillStyle = "green";
-            this.ctx.strokeStyle = "black";
-            this.ctx.font = "14px Arial";
-            this.ctx.lineWidth = 3;
-            this.ctx.strokeText(p.name, screenX - 10, screenY - 8);
-            this.ctx.fillText(p.name, screenX - 10, screenY - 8);
-        }
 
-        // animação baseada no delta real (passar deltaMs do loop)
-        if (typeof p.updateAnimation === "function") {
-            p.updateAnimation(deltaMs / 1000);
+        if (this.game.spriteMenuOpen) {
+            this.drawSpritePreview(
+                this.game.spriteSelector,
+                this.ctx.canvas.width / 2 - 32,
+                this.ctx.canvas.height / 2
+            );
         }
-    }
-}
-
 
 
 
@@ -221,6 +229,73 @@ if (otherPlayers) {
         this.drawMessageBox(messageBox);
 
     }
+
+    drawSpritePreview(spriteSelector, x, y) {
+        const ctx = this.ctx;
+        const size = this.tileSize;
+        const padding = 12;
+
+        const panelWidth = size * 3;
+        const panelHeight = size * 4;
+
+        const panelX = x - panelWidth / 2;
+        const panelY = y - panelHeight / 2;
+
+        // ===============================
+        // FUNDO DO MENU (PRETO)
+        // ===============================
+        ctx.fillStyle = "rgba(0,0,0,0.85)";
+        ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
+
+        ctx.strokeStyle = "#555";
+        ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
+
+        // ===============================
+        // BOTÃO FECHAR (X VERMELHO)
+        // ===============================
+        const closeSize = 20;
+        const closeX = panelX + panelWidth - closeSize - 6;
+        const closeY = panelY + 6;
+
+        ctx.fillStyle = "#b00000";
+        ctx.fillRect(closeX, closeY, closeSize, closeSize);
+
+        ctx.strokeStyle = "black";
+        ctx.strokeRect(closeX, closeY, closeSize, closeSize);
+
+        ctx.fillStyle = "white";
+        ctx.font = "14px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Esc", closeX + closeSize / 2, closeY + closeSize / 2);
+
+        // ===============================
+        // DESENHA SPRITE (PARTES)
+        // ===============================
+        const playerLike = {
+    getCurrentSpriteParts: () => spriteSelector.getCurrentFrame()
+};
+
+const px = panelX + panelWidth / 2;
+const py = panelY + panelHeight / 2;
+
+this._drawComposedAt(playerLike, px, py);
+
+
+        // ===============================
+        // NOME DO SPRITE
+        // ===============================
+        ctx.fillStyle = "white";
+        ctx.font = "14px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillText(
+            spriteSelector.getSpriteType(),
+            panelX + panelWidth / 2,
+            panelY + panelHeight - 22
+        );
+    }
+
 
     drawMessageBox(messageBox) {
         if (!messageBox || !messageBox.visible) return;
@@ -328,60 +403,72 @@ if (otherPlayers) {
         }
     }
 
-    // desenha o player composto no centro da view (3 partes simultâneas)
-    _drawPlayerComposed(player) {
-        // centro da view em pixels (posição do tile onde o player está desenhado)
-        const centerTileX = Math.floor(this.viewWidth / 2);
-        const centerTileY = Math.floor(this.viewHeight / 2);
-        const centerX = centerTileX * this.tileSize;
-        const centerY = centerTileY * this.tileSize;
+    _drawComposedAt(playerLike, px, py) {
+        const parts = playerLike.getCurrentSpriteParts?.();
+        if (!parts || parts.length === 0) return;
 
-        // obtem os 3 ids: [center, left, top]
-        const parts = player.getCurrentSpriteParts(); // pode retornar []
-        if (!parts || parts.length === 0) {
-            // fallback: desenha spriteId simples
-            const spr = Sprites.get(player.spriteId);
-            if (spr && spr.complete) this.ctx.drawImage(spr, centerX, centerY, this.tileSize, this.tileSize);
-            return;
-        }
-
-        // Ordens: parts[1] = left, parts[2] = top, parts[0] = center
-        // Desenha LEFT (x - tileSize)
+        // LEFT
         if (parts[1]) {
             const imgL = Sprites.get(parts[1]);
-            if (imgL && imgL.complete) {
-                this.ctx.drawImage(imgL, centerX - this.tileSize, centerY, this.tileSize, this.tileSize);
+            if (imgL?.complete) {
+                this.ctx.drawImage(
+                    imgL,
+                    px - this.tileSize,
+                    py,
+                    this.tileSize,
+                    this.tileSize
+                );
             }
         }
 
-        // Desenha TOP (y - tileSize)
+        // TOP
         if (parts[2]) {
             const imgT = Sprites.get(parts[2]);
-            if (imgT && imgT.complete) {
-                this.ctx.drawImage(imgT, centerX, centerY - this.tileSize, this.tileSize, this.tileSize);
+            if (imgT?.complete) {
+                this.ctx.drawImage(
+                    imgT,
+                    px,
+                    py - this.tileSize,
+                    this.tileSize,
+                    this.tileSize
+                );
             }
         }
 
-        // DESENHAR NOME DO POKÉMON
+        // CENTER (por último)
+        if (parts[0]) {
+            const imgC = Sprites.get(parts[0]);
+            if (imgC?.complete) {
+                this.ctx.drawImage(
+                    imgC,
+                    px,
+                    py,
+                    this.tileSize,
+                    this.tileSize
+                );
+            }
+        }
+    }
+
+    // desenha o player composto no centro da view (3 partes simultâneas)
+    _drawPlayerComposed(player) {
+        const centerTileX = Math.floor(this.viewWidth / 2);
+        const centerTileY = Math.floor(this.viewHeight / 2);
+        const px = centerTileX * this.tileSize;
+        const py = centerTileY * this.tileSize;
+
+        this._drawComposedAt(player, px, py);
+
+        // Nome
         if (player.name) {
             this.ctx.fillStyle = "white";
             this.ctx.strokeStyle = "black";
             this.ctx.font = "14px Arial";
             this.ctx.lineWidth = 3;
 
-            // Contorno preto do texto
-            this.ctx.strokeText(player.name, centerX-20, centerY - 8);
-
-            // Texto branco por cima
-            this.ctx.fillText(player.name, centerX-20, centerY - 8);
-        }
-
-        // Desenha CENTER por último (sobreposto)
-        if (parts[0]) {
-            const imgC = Sprites.get(parts[0]);
-            if (imgC && imgC.complete) {
-                this.ctx.drawImage(imgC, centerX, centerY, this.tileSize, this.tileSize);
-            }
+            this.ctx.strokeText(player.name, px - 20, py - 8);
+            this.ctx.fillText(player.name, px - 20, py - 8);
         }
     }
+
 }

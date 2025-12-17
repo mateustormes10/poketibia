@@ -8,6 +8,7 @@ import Inventory from "./inventory/Inventory.js";
 import { TileActions } from "./TileActions.js";
 import WsClient from "./websocket/WsClient.js";
 import { SkillDatabase } from "./SkillDatabase.js";
+import SpriteSelector from "./SpriteSelector.js";
 export default class Game {
     constructor(canvas, token, characterIndex) {
         this.token = token;
@@ -19,6 +20,9 @@ export default class Game {
 
         this.tileSize = 64;
         this.updateViewDimensions();
+
+        this.spriteSelector = new SpriteSelector();
+        this.spriteMenuOpen = false;
 
         this.mapSize = 500;
         this.currentZ = 3; // térreo inicial
@@ -61,13 +65,15 @@ export default class Game {
         const me = playersList.find(p => p.itsme === "yes");
         if (!me) return;
 
+        const savedSprite = localStorage.getItem("spriteType") || "default";
         if (!this.player) {
-            this.player = new Player(me.x, me.y, me.name);
+            this.player = new Player(me.x, me.y, me.name, savedSprite);
         } else {
             this.player.x = me.x;
             this.player.y = me.y;
             this.player.z = me.z ?? this.player.z;
             this.player.name = me.name;
+            this.player.spriteType = savedSprite;
         }
     }
 
@@ -77,12 +83,14 @@ updateOtherPlayersFromWS(playersList) {
 
     // Adiciona/atualiza players
     for (const p of playersList) {
+        
+        const savedSprite = localStorage.getItem("spriteType") || "default";
         if (p.itsme === "yes") continue;
 
         let playerObj = this.wsClient.otherPlayers[p.name];
 
         if (!playerObj || !(playerObj instanceof Player)) {
-            playerObj = new Player(p.x, p.y, p.name);
+            playerObj = new Player(p.x, p.y, p.name, savedSprite);
             playerObj.z = p.z ?? 3;
 
             // sprite padrão caso não tenha
@@ -608,7 +616,8 @@ updateOtherPlayersFromWS(playersList) {
                 this.handleInventoryInput();
             }
 
-            // Envia posição atual para o servidor (ex.: a cada 100ms)
+
+
             // Envia posição do player apenas se mudou e a cada 100ms
             this._lastMoveSend ??= 0;
             const nowt = performance.now();
@@ -627,6 +636,9 @@ updateOtherPlayersFromWS(playersList) {
             this._lastLoopTime = this._lastLoopTime || nowTs;
             const deltaMs = Math.min(200, nowTs - this._lastLoopTime);
             this._lastLoopTime = nowTs;
+
+            this.spriteSelector.update(deltaMs);
+            this.updateSpriteMenu(deltaMs);
 
             
             // atualiza efeitos de skills
@@ -721,6 +733,54 @@ updateOtherPlayersFromWS(playersList) {
             this.renderer.draw(this.map, this.player, this.wildMons,this.activeFollower,this.inventory,this.interaction,this.messageBox, this.cameraX, this.cameraY,this.wsClient.otherPlayers);
         }
     }
+
+    updateSpriteMenu(deltaMs) {
+        this.spriteSelector.update(deltaMs);
+        // dentro do update do Game
+        if (this.spriteMenuOpen) {
+            if (this.input.isDown("Escape") && !this._escPressed) {
+                this.spriteMenuOpen = false;
+                this._escPressed = true;
+            }
+            if (!this.input.isDown("Escape")) this._escPressed = false;
+        }
+
+
+        if (this.input.isDown("c") && !this._cPressed) {
+            this.spriteMenuOpen = !this.spriteMenuOpen;
+            this._cPressed = true;
+        }
+        if (!this.input.isDown("c")) this._cPressed = false;
+
+        if (!this.spriteMenuOpen) return;
+
+        if (this.input.isDown("d") && !this._sr) {
+            this.spriteSelector.next();
+            this._sr = true;
+        }
+        if (!this.input.isDown("d")) this._sr = false;
+
+        if (this.input.isDown("a") && !this._sl) {
+            this.spriteSelector.prev();
+            this._sl = true;
+        }
+        if (!this.input.isDown("a")) this._sl = false;
+
+        if (this.input.isDown("ArrowUp")) this.spriteSelector.setDirection("up");
+        if (this.input.isDown("ArrowDown")) this.spriteSelector.setDirection("down");
+        if (this.input.isDown("ArrowLeft")) this.spriteSelector.setDirection("left");
+        if (this.input.isDown("ArrowRight")) this.spriteSelector.setDirection("right");
+
+        if (this.input.isDown("Enter") && !this._se) {
+            const chosen = this.spriteSelector.getSpriteType();
+            this.player.setSpriteType(chosen);
+            localStorage.setItem("spriteType", chosen);
+            this.spriteMenuOpen = false;
+            this._se = true;
+        }
+        if (!this.input.isDown("Enter")) this._se = false;
+    }
+
 
 
     openInteractionMenu(found) {

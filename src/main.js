@@ -124,31 +124,33 @@ drawOverlay();    // depois aplica overlay semi-transparente
 
 // === Lógica de input ===
 window.addEventListener("keydown", async (e) => {
+
+    if (game !== null) return; // 🔒 Se o jogo já iniciou, ignora completamente o menu
         // Tecla ESC ou ArrowLeft para voltar
-if(e.key === "Escape" || e.key === "ArrowLeft") {
-    switch(menuState) {
-        case "characterSelect":
-            if(creatingCharacter) {
-                // Se estiver criando character, volta pra character select
-                creatingCharacter = false;
-            } else {
-                // Se estiver na lista de characters, volta para menu de login/account
-                menuState = "login"; // ou outro menu inicial
-                initLoginFields();   // opcional, reinicia campos
-            }
-            break;
-        case "register":
-            // Volta para login
-            menuState = "login";
-            initLoginFields();
-            break;
-        case "login":
-            // Pode não fazer nada ou exibir mensagem "Não é possível voltar"
-            break;
+    if(e.key === "Escape" || e.key === "ArrowLeft") {
+        switch(menuState) {
+            case "characterSelect":
+                if(creatingCharacter) {
+                    // Se estiver criando character, volta pra character select
+                    creatingCharacter = false;
+                } else {
+                    // Se estiver na lista de characters, volta para menu de login/account
+                    menuState = "login"; // ou outro menu inicial
+                    initLoginFields();   // opcional, reinicia campos
+                }
+                break;
+            case "register":
+                // Volta para login
+                menuState = "login";
+                initLoginFields();
+                break;
+            case "login":
+                // Pode não fazer nada ou exibir mensagem "Não é possível voltar"
+                break;
+        }
+        draw(); // redesenha tela atualizada
+        return; // evita processar outras teclas
     }
-    draw(); // redesenha tela atualizada
-    return; // evita processar outras teclas
-}
 
     // === LOGIN / REGISTER ===
     if(menuState === "login" || menuState === "register") {
