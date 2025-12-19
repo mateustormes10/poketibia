@@ -1,189 +1,196 @@
 import { SpritePlayerList } from "../SpritePlayerList.js";
+import Player from "../player.js";
 
-/**
- * Garante que o spriteId seja válido a partir do tipo e direção do player
- * @param {string} type - tipo do player (ex: "default", "warriorMale")
- * @param {string} direction - "up", "down", "left", "right"
- * @returns {number} - ID da sprite
- */
 export function getValidSpriteId(type = "default", direction = "down") {
     const spriteType = SpritePlayerList[type] || SpritePlayerList.default;
     const dir = spriteType[direction] || spriteType.down;
-    const id = dir?.[0]?.[0]; // pega o 0,0
-
-    // só usa fallback se id for null ou undefined
-    return (id !== null && id !== undefined) ? id : SpritePlayerList.default.down[0][0];
+    const id = dir?.[0]?.[0];
+    return (id !== null && id !== undefined)
+        ? id
+        : SpritePlayerList.default.down[0][0];
 }
 
 export default class WsClient {
-    constructor(game, url = "ws://localhost:8080", token) {
+    constructor(game, url = "ws://localhost:8080", playerId = null) {
         this.game = game;
         this.url = url;
-        this.token = token;
+        this.playerId = playerId;
+
         this.ws = null;
-        this.playerId = null;
-        this.pendingMoves = {}; // { playerId: { x, y, z } }
-this.syncRequested = false;
 
-        this.otherPlayers = {}; // { playerId: { x, y, z, name, sprite } }
+        this.player = null;
+        this.otherPlayers = {};
+        this.mapNearby = [];
+        this.wildPokemons = [];
     }
 
-    connect() {
-        return new Promise((resolve, reject) => {
-            this.ws = new WebSocket(this.url);
+    /* ================= CONEXÃO ================= */
 
-            this.ws.onopen = () => {
-                console.log("[WS] Conectado ao servidor");
-                resolve();
-                this.auth();
-            };
+connect(characterData, pokemons = [], iniciandoGame = false) {
+    return new Promise((resolve, reject) => {
+        this.ws = new WebSocket(this.url);
 
-            this.ws.onmessage = (event) => {
-                const msg = JSON.parse(event.data);
-                this.handleMessage(msg);
-            };
+        this.ws.onopen = () => {
+            console.log("[WS] Conectado ao servidor");
 
-            this.ws.onerror = (err) => {
-                console.error("[WS] Erro:", err);
-                reject(err);
-            };
 
-            this.ws.onclose = () => {
-                console.log("[WS] Conexão fechada");
-            };
-        });
-    }
+            if (iniciandoGame) {
+                // campos que o backend espera diretamente
+                const connectPayload = {
+                    name: characterData.name,
+                    speed: characterData.activePokemons[0]?.speed || 1,
+                    pokemonSolto: 1,
+                    direction: characterData.direction || "down",
+                    level: characterData.level,
+                    sprite: "summonerMale",
+                    position: {
+                        x: characterData.posx,
+                        y: characterData.posy,
+                        z: characterData.posz
+                    },
+                    pokemons: characterData.activePokemons.map((p, i) => ({
+                        id: `p${i+1}`,
+                        name: p.name,
+                        x: characterData.posx,
+                        y: characterData.posy,
+                        direction: p.direction || "down",
+                        sprite: p.sprite_down || "[0]"
+                    })),
+                    
+                };
 
-    auth() {
-        this.send("auth", { token: this.token });
-    }
+                this.send("connect", { 
+                    playerId: this.playerId || characterData.id, 
+                    payload: connectPayload 
+                });
+                iniciandoGame = false;
+            }
+
+
+            resolve();
+        };
+
+        this.ws.onmessage = (event) => {
+            const msg = JSON.parse(event.data);
+
+            if (msg.action === "playerConnected") {
+                this.playerId = msg.playerId || this.playerId;
+                if (msg.data) {
+                    this.updatePlayer(msg.data, true);
+                } else {
+                    console.warn("[WS] playerConnected sem data:", msg);
+                    // tenta requisitar playerData
+                    this.getGameState();
+                }
+            }
+        };
+
+        this.ws.onerror = (err) => {
+            console.error("[WS] Erro:", err);
+            reject(err);
+        };
+
+        this.ws.onclose = () => {
+            console.log("[WS] Conexão fechada");
+        };
+    });
+}
+
+
+
 
     send(action, payload = {}) {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
         this.ws.send(JSON.stringify({ action, ...payload }));
     }
 
-    handleMessage(msg) {
-        switch (msg.action) {
-            case "auth_success":
-                this.playerId = msg.player.id;
-                console.log("[WS] Autenticado como", msg.player.name);
-                this.send("request_all_players");
-                break;
+    /* ================= PLAYER ================= */
 
-            case "all_players":
-                this.otherPlayers = {};
+    updatePlayer(data, fullUpdate = false) {
+        if (!data) return;
 
-                if (msg.players) {
-                    Object.values(msg.players).forEach(p => {
-                        if (p.id === this.playerId) return; // 🔥 REMOVE O PLAYER LOCAL
+        // this.player = data;
+        this.wildPokemons = data.wildPokemonsNearbyPlayer || [];
 
-                        this.otherPlayers[p.id] = {
-                            x: p.position.x,
-                            y: p.position.y,
-                            z: p.position.z,
-                            name: p.name,
-                            itsme: p.id === this.playerId ? "yes" : "no",
-                            spriteId: p.spriteId  // pega exatamente do backend
-                        };
-                    });
-
-                         Object.entries(this.pendingMoves).forEach(([id, pos]) => {
-                            if (this.otherPlayers[id]) {
-                                this.otherPlayers[id].x = pos.x;
-                                this.otherPlayers[id].y = pos.y;
-                                this.otherPlayers[id].z = pos.z;
-                            }
-                        });
-
-                        this.pendingMoves = {};
-                }
-
-                this.game.updatePlayerFromWS(
-                    Object.values(msg.players).map(p => ({
-                        x: p.position.x,
-                        y: p.position.y,
-                        z: p.position.z,
-                        name: p.name,
-                        itsme: p.id === this.playerId ? "yes" : "no",
-                        spriteType: p.spriteType || "default"
-                    }))
-                );
-
-
-                console.log(
-                    "[WS] Lista de players conectados (exceto você):",
-                     Object.values(this.otherPlayers)
-                );
-                break;
-
-            case "player_move": {
-                const { playerId, position, spriteId } = msg;
-                if (playerId === this.playerId) return;
-                if (!position) return;
-
-                if (!this.otherPlayers[playerId]) {
-                    this.pendingMoves[playerId] = position;
-                    if (!this.syncRequested) {
-                        this.syncRequested = true;
-                        this.send("request_all_players");
-                    }
-                    return;
-                }
-
-                this.otherPlayers[playerId].x = position.x;
-                this.otherPlayers[playerId].y = position.y;
-                this.otherPlayers[playerId].z = position.z;
-                
-                // 🔹 mantém o sprite do backend
-                if (spriteId != null) {
-                    this.otherPlayers[playerId].spriteId = spriteId;
-                } else {
-                    this.otherPlayers[playerId].spriteId = getValidSpriteId(msg.spriteType || "default", "down");
-                }
-                break;
-            }
-
-
-
-
-
-            case "player_disconnect":
-                delete this.otherPlayers[msg.playerId];
-                console.log("[WS] Player desconectou:", msg.playerId);
-                break;
-
-            case "chat":
-                this.game.showMessage(`[${msg.playerName}]: ${msg.message}`, 3000);
-                break;
-
-            default:
-                console.log("[WS] Mensagem recebida:", msg);
+        if (fullUpdate) {
+            this.mapNearby = data.mapNearbyPlayer || [];
         }
+
+        // Outros players
+        Object.values(data.nearbyPlayers || {}).forEach(p => {
+            if (p.id === this.playerId) return;
+
+            if (!this.otherPlayers[p.id]) {
+                this.otherPlayers[p.id] = new Player(
+                    p.position.x,
+                    p.position.y,
+                    p.name,
+                    p.sprite || "default"
+                );
+            }
+        });
+
+        if (this.game && this.game.onPlayerUpdate) {
+            this.game.onPlayerUpdate(
+                data,
+                this.otherPlayers,
+                this.mapNearby,
+                this.wildPokemons
+            );
+        }
+
+
     }
 
-    move(x, y, z, spriteId) {
+    updateGameState(data) {
+        if (!data) return;
+
+        Object.values(data.players || {}).forEach(p => {
+            // if (p.id === this.playerId) {
+            //     this.updatePlayer(p, true);
+            //     return;
+            // }
+
+            // if (!this.otherPlayers[p.id]) {
+            //     this.otherPlayers[p.id] = new Player(
+            //         p.position.x,
+            //         p.position.y,
+            //         p.name,
+            //         p.sprite || "default"
+            //     );
+            // } else {
+            //     const op = this.otherPlayers[p.id];
+            //     op.x = p.position.x;
+            //     op.y = p.position.y;
+            //     op.direction = p.direction;
+            //     op.spriteType = p.sprite || op.spriteType;
+            // }
+        });
+
+        this.wildPokemons = Object.values(data.wildPokemons || {});
+    }
+
+
+    /* ================= AÇÕES ================= */
+
+    move(x, y, z, direction = "down") {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-        const realSpriteId = spriteId || this.game.player?.spriteId || SpritePlayerList.default.down[0][0];
+        console.log(`[WS] Move: ${x},${y},${z} dir=${direction}`);
 
-        console.log(`[WS] Enviando posição: x=${x.toFixed(2)}, y=${y.toFixed(2)}, z=${z}, sprite=${realSpriteId}`);
-        this.send("movement", { playerId: this.playerId, x, y, z, spriteId: realSpriteId });
-
-        // Atualiza localmente o player usando o nome correto e sprite real
-        const localPlayer = {
-            x,
-            y,
-            z,
-            spriteId: realSpriteId,
-            name: this.game.player?.name || "Jogador",
-            itsme: "yes"
-        };
-
-        this.game.updatePlayerFromWS([localPlayer]);
+        this.send("move", {
+            playerId: this.playerId,
+            payload: { x, y, z, direction }
+        });
     }
 
+    releasePokemon() {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+        this.send("release", { playerId: this.playerId });
+    }
 
-
-
+    getGameState() {
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+        this.send("getGameState", { playerId: this.playerId });
+    }
 }

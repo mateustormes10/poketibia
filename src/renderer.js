@@ -1,492 +1,397 @@
-import { Sprites } from "./spriteManager.js";
+import { TileActions } from "./TileActions.js";
 
 export default class Renderer {
-    constructor(ctx, tileSize, viewWidth, viewHeight, game) {
-        this.ctx = ctx;
-        this.tileSize = tileSize;
-        this.viewWidth = viewWidth;
-        this.viewHeight = viewHeight;
-        this.game = game;
-    }
-
-    draw(map, player, entities, follower,inventory, interaction,messageBox,  cameraX, cameraY, otherPlayers) {
-        this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
-
-        for (let vy = 0; vy < this.viewHeight; vy++) {
-            for (let vx = 0; vx < this.viewWidth; vx++) {
-
-                // Calcula as posições no mapa para renderizar
-                const mx = cameraX + vx;
-                const my = cameraY + vy;
-
-                const tile = map.getTile(mx, my);
-
-                if (tile) {
-                    const screenX = vx * this.tileSize;
-                    const screenY = vy * this.tileSize;
-
-                    //DESENHA TODAS AS SPRITES EMPILHADAS
-                    for (let spriteId of tile.ground) {
-
-                        const sprite = Sprites.get(spriteId);
-                        
-                        if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-                            this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Render Pokémons Selvagens
-        for (let mon of entities) {  
-            
-            let pokemonSprite = Sprites.get(mon.spriteId);       
-            const sx = (mon.x - cameraX) * this.tileSize;
-            const sy = (mon.y - cameraY) * this.tileSize;
-
-            // DESENHAR NOME DO POKÉMON
-            if (mon.name) {
-                this.ctx.fillStyle = "white";
-                this.ctx.strokeStyle = "black";
-                this.ctx.font = "14px Arial";
-                this.ctx.lineWidth = 3;
-
-                // Contorno preto do texto
-                this.ctx.strokeText(mon.name, sx-5, sy - 8);
-
-                // Texto branco por cima
-                this.ctx.fillText(mon.name, sx-5, sy - 8);
-            }
-            // DESENHAR BARRA DE VIDA
-            if (typeof mon.hp === "number" && typeof mon.maxHP === "number") {
-                const barWidth = this.tileSize;          // largura igual ao sprite
-                const barHeight = 5;                     // altura da barra
-                const lifePercent = Math.max(mon.hp / mon.maxHP, 0);
-
-                const hpWidth = barWidth * lifePercent;
-
-                // Fundo preto (vida perdida)
-                this.ctx.fillStyle = "black";
-                this.ctx.fillRect(sx, sy - 4, barWidth, barHeight);
-
-                // Vida vermelha
-                this.ctx.fillStyle = "red";
-                this.ctx.fillRect(sx, sy - 4, hpWidth, barHeight);
-            }
-
-            this.ctx.drawImage(pokemonSprite, sx, sy, this.tileSize, this.tileSize);
-        }
-
-        // Render Pokémon seguidor (se existir)
-        if (follower) {
-            const followerSprite = Sprites.get(follower.spriteId);
-            const fx = (follower.x - cameraX) * this.tileSize;
-            const fy = (follower.y - cameraY) * this.tileSize;
-
-            if (followerSprite && followerSprite.complete) {
-                // DESENHAR NOME DO POKÉMON
-                if (follower.name) {
-                    this.ctx.fillStyle = "white";
-                    this.ctx.strokeStyle = "black";
-                    this.ctx.font = "14px Arial";
-                    this.ctx.lineWidth = 3;
-
-                    // Contorno preto do texto
-                    this.ctx.strokeText(follower.name, fx-5, fy - 8);
-
-                    // Texto branco por cima
-                    this.ctx.fillText(follower.name, fx-5, fy - 8);
-                }
-                // DESENHAR BARRA DE VIDA
-                if (typeof follower.hp === "number" && typeof follower.maxHP === "number") {
-                    const barWidth = this.tileSize;          // largura igual ao sprite
-                    const barHeight = 5;                     // altura da barra
-                    const lifePercent = Math.max(follower.hp / follower.maxHP, 0);
-
-                    const hpWidth = barWidth * lifePercent;
-
-                    // Fundo preto (vida perdida)
-                    this.ctx.fillStyle = "black";
-                    this.ctx.fillRect(fx, fy - 4, barWidth, barHeight);
-
-                    // Vida vermelha
-                    this.ctx.fillStyle = "red";
-                    this.ctx.fillRect(fx, fy - 4, hpWidth, barHeight);
-                }
-                this.ctx.drawImage(followerSprite, fx, fy, this.tileSize, this.tileSize);
-            }
-        }
-
-        // ============================================
-        // RENDERIZA EFEITOS DE SKILL (AOE, MAGIAS, ETC)
-        // ============================================
-        if (map.activeEffects && map.activeEffects.length > 0) {
-            for (let fx of map.activeEffects) {
-
-                // verifica se está dentro da câmera
-                if (
-                    fx.x < cameraX ||
-                    fx.y < cameraY ||
-                    fx.x >= cameraX + this.viewWidth ||
-                    fx.y >= cameraY + this.viewHeight
-                ) continue;
-
-                const spriteId = fx.getSprite();
-                const sprite = Sprites.get(spriteId);
-
-                if (!sprite || !sprite.complete) continue;
-
-                const FX_OFFSET_X = 0;
-                const FX_OFFSET_Y = this.tileSize * 0.6; // ajuste fino aqui
-                
-
-
-                const sx = (fx.x - cameraX) * this.tileSize + FX_OFFSET_X;
-                const sy = (fx.y - cameraY) * this.tileSize + FX_OFFSET_Y;
-
-                if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-                    this.ctx.drawImage(sprite, sx, sy, this.tileSize, this.tileSize);
-                }
-            }
-        }
-       
-        // Player local
-        this._drawPlayerComposed(player, cameraX, cameraY);
-
-        // =====================================
-        // OVERLAY (árvores, casas, topo)
-        // =====================================
-        for (let vy = 0; vy < this.viewHeight; vy++) {
-            for (let vx = 0; vx < this.viewWidth; vx++) {
-
-                const mx = cameraX + vx;
-                const my = cameraY + vy;
-                const tile = map.getTile(mx, my);
-                if (!tile || !tile.overlay) continue;
-
-
-                const screenX = vx * this.tileSize;
-                const screenY = vy * this.tileSize;
-
-                
-
-                for (let spriteId of tile.overlay) {
-                    const sprite = Sprites.get(spriteId);
-                    if (sprite?.complete) {
-                        this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
-                    }
-                }
-            }
-        }
-
-        // Desenhar outros players
-        if (otherPlayers) {
-            for (const playerName in otherPlayers) {
-                const p = otherPlayers[playerName];
-                if (!p) continue;
-
-                const screenX = (Math.floor(p.x) - cameraX) * this.tileSize;
-                const screenY = (Math.floor(p.y) - cameraY) * this.tileSize;
-
-                // sprite com fallback
-let spriteId = p.spriteId;
-
-// converte string numérica para número
-if (!isNaN(spriteId)) spriteId = Number(spriteId);
-
-// fallback
-if (!spriteId) spriteId = "default";
-
-const sprite = Sprites.get(spriteId);
-if (sprite?.complete) this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
-
-
-console.log("Renderizando player", p.name, p.spriteId, sprite?.complete);
-
-                if (sprite && sprite.complete) {
-                    this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
-                }
-
-                // desenhar nome
-                if (p.name) {
-                    this.ctx.fillStyle = "green";
-                    this.ctx.strokeStyle = "black";
-                    this.ctx.font = "14px Arial";
-                    this.ctx.lineWidth = 3;
-                    this.ctx.strokeText(p.name, screenX - 10, screenY - 8);
-                    this.ctx.fillText(p.name, screenX - 10, screenY - 8);
-                }
-
-                // animação baseada no delta real (passar deltaMs do loop)
-                if (typeof p.updateAnimation === "function") {
-                    p.updateAnimation(deltaMs / 1000);
-                }
-            }
-        }
-
-
-        if (this.game.spriteMenuOpen) {
-            this.drawSpritePreview(
-                this.game.spriteSelector,
-                this.ctx.canvas.width / 2 - 32,
-                this.ctx.canvas.height / 2
-            );
-        }
-
-
-
-     
-
-        this.drawInventory(inventory);
-        this.drawInteractionMenu(interaction);
-        this.drawMessageBox(messageBox);
-
-    }
-
-    drawSpritePreview(spriteSelector, x, y) {
-        const ctx = this.ctx;
-        const size = this.tileSize;
-        const padding = 12;
-
-        const panelWidth = size * 3;
-        const panelHeight = size * 4;
-
-        const panelX = x - panelWidth / 2;
-        const panelY = y - panelHeight / 2;
-
-        // ===============================
-        // FUNDO DO MENU (PRETO)
-        // ===============================
-        ctx.fillStyle = "rgba(0,0,0,0.85)";
-        ctx.fillRect(panelX, panelY, panelWidth, panelHeight);
-
-        ctx.strokeStyle = "#555";
-        ctx.strokeRect(panelX, panelY, panelWidth, panelHeight);
-
-        // ===============================
-        // BOTÃO FECHAR (X VERMELHO)
-        // ===============================
-        const closeSize = 20;
-        const closeX = panelX + panelWidth - closeSize - 6;
-        const closeY = panelY + 6;
-
-        ctx.fillStyle = "#b00000";
-        ctx.fillRect(closeX, closeY, closeSize, closeSize);
-
-        ctx.strokeStyle = "black";
-        ctx.strokeRect(closeX, closeY, closeSize, closeSize);
-
-        ctx.fillStyle = "white";
-        ctx.font = "14px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText("Esc", closeX + closeSize / 2, closeY + closeSize / 2);
-
-        // ===============================
-        // DESENHA SPRITE (PARTES)
-        // ===============================
-        const playerLike = {
-    getCurrentSpriteParts: () => spriteSelector.getCurrentFrame()
-};
-
-const px = panelX + panelWidth / 2;
-const py = panelY + panelHeight / 2;
-
-this._drawComposedAt(playerLike, px, py);
-
-
-        // ===============================
-        // NOME DO SPRITE
-        // ===============================
-        ctx.fillStyle = "white";
-        ctx.font = "14px sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        ctx.fillText(
-            spriteSelector.getSpriteType(),
-            panelX + panelWidth / 2,
-            panelY + panelHeight - 22
-        );
-    }
-
-
-    drawMessageBox(messageBox) {
-        if (!messageBox || !messageBox.visible) return;
-
-        const ctx = this.ctx;
-
-        const boxWidth = 360;
-        const boxHeight = 60;
-
-        const x = (ctx.canvas.width - boxWidth) / 2;
-        const y = (ctx.canvas.height - boxHeight) / 2;
-
-        ctx.fillStyle = "rgba(0,0,0,0.85)";
-        ctx.fillRect(x, y, boxWidth, boxHeight);
-
-        ctx.strokeStyle = "#aaa";
-        ctx.strokeRect(x, y, boxWidth, boxHeight);
-
-        ctx.fillStyle = "white";
-        ctx.font = "16px Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-
-        ctx.fillText(messageBox.text, x + boxWidth / 2, y + boxHeight / 2);
-    }
-
-
-    drawInteractionMenu(interaction) {
-        if (!interaction || !interaction.open) return;
-
-        const ctx = this.ctx;
-
-        const boxWidth = 160;
-        const optionHeight = 28;
-        const padding = 8;
-        const boxHeight =
-            interaction.options.length * optionHeight + padding * 2;
-
-        const x = (ctx.canvas.width - boxWidth) / 2;
-        const y = ctx.canvas.height - boxHeight - 40;
-
-        // fundo
-        ctx.fillStyle = "rgba(0,0,0,0.85)";
-        ctx.fillRect(x, y, boxWidth, boxHeight);
-
-        ctx.strokeStyle = "#aaa";
-        ctx.strokeRect(x, y, boxWidth, boxHeight);
-
-        ctx.font = "14px Arial";
-        ctx.textBaseline = "middle";
-
-        for (let i = 0; i < interaction.options.length; i++) {
-            const oy = y + padding + i * optionHeight;
-
-            if (i === interaction.index) {
-                ctx.fillStyle = "#444";
-                ctx.fillRect(
-                    x + 2,
-                    oy,
-                    boxWidth - 4,
-                    optionHeight
-                );
-            }
-
-            ctx.fillStyle = "white";
-            ctx.fillText(
-                interaction.options[i],
-                x + 12,
-                oy + optionHeight / 2
-            );
-        }
-    }
-
-    drawInventory(inventory) {
-        if (!inventory.visible) return;
-
-        const slotSize = 48;
-        const startX = (this.ctx.canvas.width - inventory.cols * slotSize) / 2;
-        const startY = (this.ctx.canvas.height - inventory.rows * slotSize) / 2;
-
-        // fundo
-        this.ctx.fillStyle = "rgba(0,0,0,0.8)";
-        this.ctx.fillRect(
-            startX - 12,
-            startY - 12,
-            inventory.cols * slotSize + 24,
-            inventory.rows * slotSize + 24
-        );
-
-        // slots
-        for (let i = 0; i < inventory.slots.length; i++) {
-            const x = i % inventory.cols;
-            const y = Math.floor(i / inventory.cols);
-
-            const px = startX + x * slotSize;
-            const py = startY + y * slotSize;
-
-            this.ctx.strokeStyle = "#6b4a2b";
-            this.ctx.strokeRect(px, py, slotSize, slotSize);
-
-            const item = inventory.slots[i];
-            if (item) {
-                this.drawSprite(item.sprite, px + 8, py + 8);
-            }
-        }
-    }
-
-    _drawComposedAt(playerLike, px, py) {
-        const parts = playerLike.getCurrentSpriteParts?.();
-        if (!parts || parts.length === 0) return;
-
-        // LEFT
-        if (parts[1]) {
-            const imgL = Sprites.get(parts[1]);
-            if (imgL?.complete) {
-                this.ctx.drawImage(
-                    imgL,
-                    px - this.tileSize,
-                    py,
-                    this.tileSize,
-                    this.tileSize
-                );
-            }
-        }
-
-        // TOP
-        if (parts[2]) {
-            const imgT = Sprites.get(parts[2]);
-            if (imgT?.complete) {
-                this.ctx.drawImage(
-                    imgT,
-                    px,
-                    py - this.tileSize,
-                    this.tileSize,
-                    this.tileSize
-                );
-            }
-        }
-
-        // CENTER (por último)
-        if (parts[0]) {
-            const imgC = Sprites.get(parts[0]);
-            if (imgC?.complete) {
-                this.ctx.drawImage(
-                    imgC,
-                    px,
-                    py,
-                    this.tileSize,
-                    this.tileSize
-                );
-            }
-        }
-    }
-
-    // desenha o player composto no centro da view (3 partes simultâneas)
-    _drawPlayerComposed(p, cameraX, cameraY) {
-    const screenX = (Math.floor(p.x) - cameraX) * this.tileSize;
-    const screenY = (Math.floor(p.y) - cameraY) * this.tileSize;
-
-    const sprite = Sprites.get(p.spriteId);
-    if (sprite?.complete) {
-        this.ctx.drawImage(sprite, screenX, screenY, this.tileSize, this.tileSize);
-    }
-
-    if (p.name) {
-        this.ctx.fillStyle = "white";
-        this.ctx.strokeStyle = "black";
-        this.ctx.font = "14px Arial";
-        this.ctx.lineWidth = 3;
-        this.ctx.strokeText(p.name, screenX - 5, screenY - 8);
-        this.ctx.fillText(p.name, screenX - 5, screenY - 8);
-    }
+	constructor(ctx, canvas, game = null, viewCols = 20, viewRows = 20) {
+		this.ctx = ctx;
+		this.canvas = canvas;
+		this.game = game;
+		this.viewCols = viewCols;
+		this.viewRows = viewRows;
+
+		// tamanho base das sprites reais (32x32)
+		this.baseTile = 32;
+		this.tileSizeRender = this.baseTile;  // fallback
+
+		// offsets (in tiles) dentro do chunk que estamos desenhando
+		this.xOffset = 0;
+		this.yOffset = 0;
+
+		// arrays para largura/altura por coluna/linha e seus offsets
+		this.colWidths = new Array(this.viewCols).fill(0);
+		this.rowHeights = new Array(this.viewRows).fill(0);
+		this.colOffsets = new Array(this.viewCols).fill(0);
+		this.rowOffsets = new Array(this.viewRows).fill(0);
+
+		// pending overlays serão desenhados depois dos players
+		this._pendingOverlays = [];
+		this._lastLoadedImages = null;
+
+		// desativa smoothing para evitar "seams" entre tiles ao escalar
+		try {
+			this.ctx.imageSmoothingEnabled = false;
+			if (this.ctx.msImageSmoothingEnabled !== undefined) this.ctx.msImageSmoothingEnabled = false;
+		} catch (e) {}
+	}
+
+	// calcula arrays inteiros de largura/altura que somam exatamente ao canvas
+	_calcTileArrays() {
+		const totalCols = this.viewCols;
+		const totalRows = this.viewRows;
+
+		// base integer widths/heights
+		const baseW = Math.floor(this.canvas.width / Math.max(1, totalCols));
+		const baseH = Math.floor(this.canvas.height / Math.max(1, totalRows));
+
+		// pixels sobram que precisamos distribuir
+		let extraW = this.canvas.width - baseW * totalCols;
+		let extraH = this.canvas.height - baseH * totalRows;
+
+		// preenche colWidths e rowHeights distribuindo 1px extras na esquerda/top
+		for (let c = 0; c < totalCols; c++) {
+			this.colWidths[c] = baseW + (extraW > 0 ? 1 : 0);
+			if (extraW > 0) extraW--;
+		}
+		for (let r = 0; r < totalRows; r++) {
+			this.rowHeights[r] = baseH + (extraH > 0 ? 1 : 0);
+			if (extraH > 0) extraH--;
+		}
+
+		// calc prefix offsets
+		let acc = 0;
+		for (let c = 0; c < totalCols; c++) {
+			this.colOffsets[c] = acc;
+			acc += this.colWidths[c];
+		}
+		acc = 0;
+		for (let r = 0; r < totalRows; r++) {
+			this.rowOffsets[r] = acc;
+			acc += this.rowHeights[r];
+		}
+	}
+
+	renderMap(mapNearby, loadedImages, imagesPreloaded) {
+		if (!mapNearby || !mapNearby.length || !imagesPreloaded) return;
+
+		// guarda referência para usar ao desenhar overlays depois
+		this._lastLoadedImages = loadedImages;
+		this._pendingOverlays.length = 0;
+
+		// recalcula arrays de tile para preencher todo o canvas
+		this._calcTileArrays();
+
+		// determina quantos tiles vamos desenhar (capados pela chunk)
+		const colsToRender = Math.min(this.viewCols, (mapNearby[0]?.length) || 0);
+		const rowsToRender = Math.min(this.viewRows, mapNearby.length);
+
+		// centraliza viewport dentro do chunk (em tiles)
+		const chunkCols = (mapNearby[0]?.length) || 0;
+		const chunkRows = mapNearby.length;
+		this.xOffset = Math.max(0, Math.floor((chunkCols - colsToRender) / 2));
+		this.yOffset = Math.max(0, Math.floor((chunkRows - rowsToRender) / 2));
+
+		this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+		this.ctx.imageSmoothingEnabled = false; // reforça antes do desenho
+
+		// desenha apenas a viewport 20x20 (ou menor se chunk for menor)
+		for (let vy = 0; vy < rowsToRender; vy++) {
+			for (let vx = 0; vx < colsToRender; vx++) {
+				const mx = this.xOffset + vx;
+				const my = this.yOffset + vy;
+				const tileStr = (mapNearby[my] && mapNearby[my][mx]) || "";
+				const tileParts = String(tileStr).replace(/\[|\]/g, "").split(",");
+				const passable = tileParts[tileParts.length - 1] === "S";
+				const pngs = tileParts.slice(0, -1).filter(p => /^\d+$/.test(p));
+
+				// usa arrays de larguras/alturas e offsets inteiros
+				const sx = Math.round(this.colOffsets[vx]);
+				const sy = Math.round(this.rowOffsets[vy]);
+				const sw = this.colWidths[vx];
+				const sh = this.rowHeights[vy];
+
+				for (const png of pngs) {
+					const idKey = String(png);
+					const action = TileActions[idKey];
+					const isOverlay = action && action.layer === "overlay";
+					// se for overlay, acumula para desenhar depois dos players
+					if (isOverlay) {
+						// calcula coordenada global do tile (mx/my são índices dentro do chunk)
+						const globalX = mx + (this.game?.mapOrigin?.x ?? 0);
+						const globalY = my + (this.game?.mapOrigin?.y ?? 0);
+						this._pendingOverlays.push({ id: idKey, sx, sy, sw, sh, globalX, globalY });
+						continue;
+					}
+					const img = loadedImages[png];
+					if (img && img.complete && img.naturalWidth > 0) {
+						this.ctx.drawImage(img, sx, sy, sw, sh);
+					} else {
+						this.ctx.fillStyle = "#444";
+						this.ctx.fillRect(sx, sy, sw, sh);
+					}
+				}
+
+				// removed red debug overlay for non-passable tiles to avoid red blur
+				if (!passable) {
+					// debug overlay removed — keep empty so non-passable tiles don't show red blur
+					// If you need debug, uncomment:
+					// this.ctx.fillStyle = "rgba(255,0,0,0.12)";
+					// this.ctx.fillRect(sx, sy, sw, sh);
+				}
+			}
+		}
+	}
+
+	// desenha overlays acumulados (deve ser chamado APÓS desenhar players)
+	renderOverlays() {
+		if (!this._lastLoadedImages || !this._pendingOverlays.length) return;
+		for (const op of this._pendingOverlays) {
+			try {
+				const action = TileActions[String(op.id)];
+				let drawKey = String(op.id);
+
+				// se existir idleAnimation e o jogador estiver perto o suficiente, seleciona frame atual
+				if (action?.idleAnimation && this.game?.player) {
+					try {
+						const range = Number(action.idleAnimation.range ?? Infinity);
+						const px = Number(this.game.player.position.x ?? 0);
+						const py = Number(this.game.player.position.y ?? 0);
+						const gx = Number(op.globalX ?? 0);
+						const gy = Number(op.globalY ?? 0);
+						const dist = Math.abs(px - gx) + Math.abs(py - gy);
+						if (dist <= range) {
+							const frames = Array.isArray(action.idleAnimation.frames) ? action.idleAnimation.frames : [];
+							const interval = Number(action.idleAnimation.interval ?? 600);
+							if (frames.length) {
+								const totalMs = frames.length * interval;
+								const t = Date.now() % totalMs;
+								const idx = Math.floor(t / interval) % frames.length;
+								drawKey = String(frames[idx]);
+							}
+						}
+					} catch (e) { /* fallback: usa op.id */ }
+				}
+
+				const img = this._lastLoadedImages[drawKey] || this._lastLoadedImages[op.id];
+				if (img && img.complete && img.naturalWidth > 0) {
+					this.ctx.drawImage(img, Math.round(op.sx), Math.round(op.sy), op.sw, op.sh);
+				} else {
+					this.ctx.fillStyle = "#444";
+					this.ctx.fillRect(Math.round(op.sx), Math.round(op.sy), op.sw, op.sh);
+				}
+			} catch (e) { /* ignore per-tile errors */ }
+		}
+		this._pendingOverlays.length = 0;
+	}
+
+	drawPlayer(playerEntity, mapOrigin, color = "blue") {
+		if (!playerEntity) return;
+		if (!Number.isFinite(playerEntity.position.x) || !Number.isFinite(playerEntity.position.y)) return;
+
+
+
+		// efeito de captura falhada (pisca)
+		if (playerEntity._captureFailFlash !== undefined) {
+			playerEntity._captureFailFlash -= 0.016; // ~60fps
+			if (playerEntity._captureFailFlash <= 0) {
+				delete playerEntity._captureFailFlash;
+				return; // pula desenho
+			}
+			if (playerEntity._captureFailFlash % 0.1 < 0.05) return; // pisca a cada 100ms
+		}
+
+		// converte coordenada global -> índice local do chunk, depois aplica offset da viewport
+		const localX = playerEntity.position.x - (mapOrigin?.x ?? 0);
+		const localY = playerEntity.position.y - (mapOrigin?.y ?? 0);
+
+		// índices dentro da viewport
+		const idxX = Math.round(localX - this.xOffset);
+		const idxY = Math.round(localY - this.yOffset);
+
+
+
+		// fora da viewport
+		if (idxX < 0 || idxX >= this.viewCols || idxY < 0 || idxY >= this.viewRows) return;
+
+		// calcula posição em pixels usando offsets prefixados
+		const px = Math.round(this.colOffsets[idxX]);
+		const py = Math.round(this.rowOffsets[idxY]);
+		let pw = this.colWidths[idxX];
+		let ph = this.rowHeights[idxY];
+
+		// Para pokémons, força tamanho mínimo de 64x64 para garantir visibilidade
+		if (playerEntity.ownerId) {
+			const minSize = 64;
+			if (pw < minSize) pw = minSize;
+			if (ph < minSize) ph = minSize;
+		}
+
+		// se estiver totalmente fora da tela, ignora
+		if (px + pw < 0 || py + ph < 0 || px > this.canvas.width || py > this.canvas.height) {
+			return;
+		}
+
+		// desenha nome e barra de vida (se houver)
+		try {
+			const name = playerEntity.name;
+			const hp = Number(playerEntity.hp ?? NaN);
+			const maxHp = Number(playerEntity.maxHp ?? NaN);
+
+			// health bar (logo acima do sprite, com mesma largura do sprite)
+			if (!Number.isNaN(hp) && !Number.isNaN(maxHp)) {
+				const barW = pw; // largura igual à sprite
+			const barH = Math.max(6, Math.floor(pw * 0.1)); // aumentada para melhor visibilidade
+			const bx = px;
+			const by = py - barH - 4; // 4px de espaço entre barra e sprite
+
+			// fundo preto (parte vazia)
+			this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+			this.ctx.fillRect(bx, by, barW, barH);
+
+			// cor da vida baseada na porcentagem
+			const pct = Math.max(0, Math.min(1, hp / (maxHp || 1)));
+			let hpColor = "red";
+			if (pct > 0.5) hpColor = "#00ff00"; // verde
+			else if (pct > 0.25) hpColor = "#ffaa00"; // laranja
+			
+			this.ctx.fillStyle = hpColor;
+			this.ctx.fillRect(bx + 1, by + 1, Math.max(0, Math.floor((barW - 2) * pct)), Math.max(1, barH - 2));
+			
+			// Texto HP para Pokemon selvagens (sem ownerId)
+			if (!playerEntity.ownerId && barW > 40) {
+				this.ctx.font = `${Math.max(8, Math.floor(barH * 0.8))}px Arial`;
+				this.ctx.textAlign = "center";
+				this.ctx.textBaseline = "middle";
+				this.ctx.fillStyle = "white";
+				this.ctx.strokeStyle = "black";
+				this.ctx.lineWidth = 2;
+				const hpText = `${Math.max(0, Math.floor(hp))}/${maxHp}`;
+				this.ctx.strokeText(hpText, bx + barW/2, by + barH/2);
+				this.ctx.fillText(hpText, bx + barW/2, by + barH/2);
+			}
+		}
+
+		// nome (acima da barra)
+		if (name) {
+			const textX = px + pw / 2;
+			const barH = Math.max(4, Math.floor(pw * 0.08));
+			const textY = (!Number.isNaN(hp) && !Number.isNaN(maxHp)) ? (py - barH - 8) : (py - 8);
+
+			this.ctx.font = `${Math.max(12, Math.floor(pw * 0.18))}px Arial`;
+			this.ctx.textAlign = "center";
+			this.ctx.textBaseline = "bottom";
+
+			// contorno preto
+			this.ctx.lineWidth = 3;
+			this.ctx.strokeStyle = "black";
+			this.ctx.strokeText(name, textX, textY);
+			// texto branco
+			this.ctx.fillStyle = "white";
+			this.ctx.fillText(name, textX, textY);
+		}
+	} catch (e) {
+		// ignore erros de desenho de overlay
+	}
+
+	// tenta desenhar as 3 partes (left, top, center) com sombra sutil
+	try {
+		const parts = playerEntity.getCurrentSpriteParts?.() || [];
+		const [centerId, leftId, topId] = parts;
+
+		let drewSomething = false;
+
+		// LEFT (à esquerda do centro)
+		if (leftId !== null && leftId !== undefined && leftId !== 0) {
+			const imgL = this.game?.loadedImages?.[String(leftId)];
+			if (imgL && imgL.complete && imgL.naturalWidth > 0) {
+				this.ctx.drawImage(imgL, px - pw, py, pw, ph);
+			}
+		}
+
+		// TOP (acima do centro)
+		if (topId !== null && topId !== undefined && topId !== 0) {
+			const imgT = this.game?.loadedImages?.[String(topId)];
+			if (imgT && imgT.complete && imgT.naturalWidth > 0) {
+				this.ctx.drawImage(imgT, px, py - ph, pw, ph);
+			}
+		}
+
+		// CENTER (por último para sobrepor)
+		if (centerId !== null && centerId !== undefined && centerId !== 0) {
+			const imgC = this.game?.loadedImages?.[String(centerId)];
+			if (imgC && imgC.complete && imgC.naturalWidth > 0) {
+				this.ctx.save();
+				this.ctx.imageSmoothingEnabled = false;
+				this.ctx.drawImage(imgC, px, py, pw, ph);
+				this.ctx.restore();
+				drewSomething = true;
+			}
+		}
+
+		if (drewSomething) return;
+	} catch (e) {
+		// ignore e fallback
+	}
+
+	// fallback: tentar desenhar a primeira sprite conhecida (centerId ou spriteFrames[0])
+	try {
+		let fallbackId = null;
+		// tenta centerId (se veio via getCurrentSpriteParts)
+		const partsFallback = playerEntity.getCurrentSpriteParts?.() || [];
+		if (partsFallback && partsFallback[0]) fallbackId = partsFallback[0];
+		// se não, tenta usar spriteFrames (linha atual)
+		if (!fallbackId && Array.isArray(playerEntity.spriteFrames) && playerEntity.spriteFrames.length) {
+			fallbackId = Number(playerEntity.spriteFrames[0]) || null;
+		}
+		if (fallbackId) {
+			const imgF = this.game?.loadedImages?.[String(fallbackId)];
+			if (imgF && imgF.complete && imgF.naturalWidth > 0) {
+				this.ctx.save();
+				this.ctx.imageSmoothingEnabled = false;
+				this.ctx.drawImage(imgF, px, py, pw, ph);
+				this.ctx.restore();
+				return;
+			}
+		}
+		// se não houver imagem válida, não desenha fallback colorido
+	} catch (e) {
+		// silent
+	}
 }
 
+	// Converte coordenadas de tela para coordenadas de tile
+	screenToTile(screenX, screenY) {
+		// Procura qual tile corresponde à posição clicada
+		for (let idxX = 0; idxX < this.viewCols; idxX++) {
+			for (let idxY = 0; idxY < this.viewRows; idxY++) {
+				const px = Math.round(this.colOffsets[idxX]);
+				const py = Math.round(this.rowOffsets[idxY]);
+				const pw = this.colWidths[idxX];
+				const ph = this.rowHeights[idxY];
+				
+				if (screenX >= px && screenX <= px + pw && screenY >= py && screenY <= py + ph) {
+					return {
+						x: idxX + this.xOffset,
+						y: idxY + this.yOffset
+					};
+				}
+			}
+		}
+		return null;
+	}
 
-
-
-
-
+	// Converte coordenadas de tile para coordenadas de tela
+	tileToScreen(tileX, tileY) {
+		// Converte tile global para índice local na viewport
+		const idxX = tileX - this.xOffset;
+		const idxY = tileY - this.yOffset;
+		
+		// Verifica se está dentro da viewport
+		if (idxX < 0 || idxX >= this.viewCols || idxY < 0 || idxY >= this.viewRows) {
+			return null;
+		}
+		
+		return {
+			x: Math.round(this.colOffsets[idxX]),
+			y: Math.round(this.rowOffsets[idxY])
+		};
+	}
 }

@@ -102,10 +102,10 @@ const gameState = {
   },
 
   wildPokemons: {
-    "wild1": { id: "wild1", name: "Pikachu", position: { x: 33, y: 23, z: 3 }, sprite: "pikachu", direction: "left", hp: 100, maxHp: 100, level: 5, isWild: true },
-    "wild2": { id: "wild2", name: "Charmander", position: { x: 35, y: 25, z: 3 }, sprite: "charmander", direction: "up", hp: 80, maxHp: 80, level: 5, isWild: true },
-    "wild3": { id: "wild3", name: "Squirtle", position: { x: 28, y: 28, z: 3 }, sprite: "squirtle", direction: "down", hp: 90, maxHp: 90, level: 5, isWild: true },
-    "wild4": { id: "wild4", name: "Bulbasaur", position: { x: 25, y: 20, z: 3 }, sprite: "bulbasaur", direction: "right", hp: 85, maxHp: 85, level: 5, isWild: true }
+    "wild1": { id: "wild1", name: "Pikachu", position: { x: 33, y: 23, z: 3 }, sprite: "pikachu", direction: "left", hp: 100, maxHp: 100, level: 5, isWild: true, ownerId: null },
+    "wild2": { id: "wild2", name: "Charmander", position: { x: 35, y: 25, z: 3 }, sprite: "charmander", direction: "up", hp: 80, maxHp: 80, level: 5, isWild: true, ownerId: null },
+    "wild3": { id: "wild3", name: "Squirtle", position: { x: 28, y: 28, z: 3 }, sprite: "squirtle", direction: "down", hp: 90, maxHp: 90, level: 5, isWild: true, ownerId: null },
+    "wild4": { id: "wild4", name: "Bulbasaur", position: { x: 25, y: 20, z: 3 }, sprite: "bulbasaur", direction: "right", hp: 85, maxHp: 85, level: 5, isWild: true, ownerId: null }
   },
 
   serverInfo: {
@@ -202,37 +202,6 @@ for (const key in gameState.serverInfo.maps) {
 // ---------- Funções utilitárias ----------
 const wsClients = new Map();
 
-// Calcula posição do pokémon follower (2 tiles atrás do player)
-function getFollowerPosition(playerX, playerY, playerDirection) {
-  let followerX = playerX;
-  let followerY = playerY;
-  
-  // Converte direction numérica para string se necessário
-  let dir = playerDirection;
-  if (typeof dir === 'number') {
-    const dirMap = { 0: 'up', 1: 'down', 2: 'left', 3: 'right' };
-    dir = dirMap[dir] || 'down';
-  }
-  
-  // Calcula posição baseado na direção
-  switch(dir) {
-    case 'up':
-      followerY = playerY + 2; // Pokémon fica 2 tiles abaixo
-      break;
-    case 'down':
-      followerY = playerY - 2; // Pokémon fica 2 tiles acima
-      break;
-    case 'left':
-      followerX = playerX + 2; // Pokémon fica 2 tiles à direita
-      break;
-    case 'right':
-      followerX = playerX - 2; // Pokémon fica 2 tiles à esquerda
-      break;
-  }
-  
-  return { x: followerX, y: followerY };
-}
-
 function calculateWildsNearby(player) {
   const range = 20;
   const nearby = [];
@@ -256,8 +225,8 @@ function calculateWildsNearby(player) {
         hp: w.hp,
         maxHp: w.maxHp || w.hp || 100,
         level: w.level || 1,
-        isWild: w.isWild ?? (!w.ownerId),
-        ownerId: w.ownerId
+        isWild: w.isWild !== false,
+        ownerId: w.ownerId ?? null
       });
     }
   }
@@ -300,6 +269,21 @@ function getPlayerData(playerId) {
   
   player.mapNearbyPlayer = getPlayerMapNearby(player);
   player.nearbyPlayers = calculateNearbyPlayers(player);
+  
+  // Adiciona activePokemon aos dados do player
+  const activePokemon = player.pokemons[player.pokemonSolto - 1];
+  if (activePokemon) {
+    activePokemon.direction = player.direction;
+    player.activePokemon = {
+      id: activePokemon.id || null,
+      name: activePokemon.name,
+      sprite: activePokemon.sprite,
+      direction: activePokemon.direction,
+      hp: activePokemon.hp || 100,
+      maxHp: activePokemon.maxHp || 100,
+      level: activePokemon.level || 1
+    };
+  }
 
   return player;
 }
@@ -538,12 +522,9 @@ wss.on("connection", (ws) => {
 
           console.log("[SERVER] Player", player.id, "move para", x, y);
 
-
+          // Não manipula posição do pokémon - isso é responsabilidade do cliente renderizar
           const activePokemon = player.pokemons[player.pokemonSolto - 1];
           if (activePokemon) {
-            const followerPos = getFollowerPosition(player.position.x, player.position.y, player.direction);
-            activePokemon.x = followerPos.x;
-            activePokemon.y = followerPos.y;
             activePokemon.direction = player.direction;
           }
 
@@ -598,9 +579,6 @@ wss.on("connection", (ws) => {
             // atualiza pokemon ativo (se houver) para seguir o player
             const activePokemon = player.pokemons[player.pokemonSolto - 1];
             if (activePokemon) {
-              const followerPos = getFollowerPosition(player.position.x, player.position.y, player.direction);
-              activePokemon.x = followerPos.x;
-              activePokemon.y = followerPos.y;
               activePokemon.direction = player.direction;
             }
 

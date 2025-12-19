@@ -82,6 +82,9 @@ ALTER TABLE players
 MODIFY COLUMN lookaddons VARCHAR(50) NOT NULL DEFAULT 'default';
 
 
+
+
+
 -- ======================
 -- VIP LIST
 -- ======================
@@ -442,6 +445,24 @@ INSERT INTO pokemons (
     JSON_ARRAY(33651, 33655, 33659),
     JSON_ARRAY(33649, 33653, 33657)
 );
+
+CREATE TABLE player_active_pokemons (
+    player_id INT NOT NULL,
+    pokemon_id INT NOT NULL,
+    slot INT NOT NULL, -- 1 a 6
+    nickname VARCHAR(50) DEFAULT NULL,
+    x INT NOT NULL DEFAULT 0,
+    y INT NOT NULL DEFAULT 0,
+    direction VARCHAR(10) NOT NULL DEFAULT 'down',
+    PRIMARY KEY (player_id, slot),
+    FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
+    FOREIGN KEY (pokemon_id) REFERENCES pokemons(id) ON DELETE CASCADE
+);
+
+INSERT INTO player_active_pokemons (player_id, pokemon_id, slot, direction)
+VALUES 
+(1, 4, 1, 'down'),  -- o pokemon_id aqui pode dar erro precisa ser um id correto de dentro de pokemon
+(1, 5, 2, 'down');  -- Raichu
 
 CREATE TABLE wild_pokemons (
     id INT AUTO_INCREMENT PRIMARY KEY,

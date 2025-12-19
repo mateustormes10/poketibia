@@ -1,6 +1,11 @@
 import Game from "./game.js";
 
 const canvas = document.getElementById("gameCanvas");
+
+// garante que body não tenha margens que quebrem o full-viewport
+document.body.style.margin = "0";
+canvas.style.display = "block";
+
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
@@ -80,45 +85,58 @@ function initLoginFields() {
 
 function drawLogin() {
     drawBackground();
-drawOverlay();    // depois aplica overlay semi-transparente
+    drawOverlay();    // depois aplica overlay semi-transparente
 
+    ctx.save();
     ctx.fillStyle = "white";
     ctx.font = "24px Arial";
-    ctx.fillText("Login", canvas.width/2 - 30, canvas.height/2 - 100);
+    ctx.textAlign = "center";
+    ctx.fillText("Login", canvas.width/2, canvas.height/2 - 100);
 
+    ctx.font = "14px Arial";
     inputFields.forEach((field, i) => {
         ctx.strokeStyle = i === currentInput ? "yellow" : "white";
+        ctx.lineWidth = 2;
         ctx.strokeRect(field.x, field.y, 200, 30);
         ctx.fillStyle = "white";
-        ctx.fillText(field.value || field.placeholder, field.x + 5, field.y + 22);
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        const txt = field.value.length ? field.value : field.placeholder;
+        ctx.fillText(txt, field.x + 8, field.y + 15);
     });
 
-    ctx.fillText("Press Enter to submit", canvas.width/2 - 80, canvas.height/2 + 100);
+    ctx.textAlign = "center";
+    ctx.fillText("Press Enter to submit", canvas.width/2, canvas.height/2 + 100);
+    ctx.restore();
 }
 
 function drawCharacterSelect(playerData) {
     drawBackground();
-drawOverlay();    // depois aplica overlay semi-transparente
+    drawOverlay();    // depois aplica overlay semi-transparente
 
+    ctx.save();
     ctx.fillStyle = "white";
     ctx.font = "24px Arial";
-    ctx.fillText("Select Character", canvas.width/2 - 80, 50);
+    ctx.textAlign = "center";
+    ctx.fillText("Select Character", canvas.width/2, 50);
 
     const chars = accountData.characters || [];
 
     if (chars.length > 0) {
+        ctx.font = "18px Arial";
         chars.forEach((c, i) => {
             ctx.fillStyle = selectedCharacter === i ? "yellow" : "white";
-            ctx.fillText(c.name, canvas.width/2 - 50, 150 + i * 40);
+            ctx.textAlign = "center";
+            ctx.fillText(c.name, canvas.width/2, 150 + i * 40);
         });
     } else {
-        if(!creatingCharacter){
-            ctx.fillText("No characters found. Press Enter to create!", canvas.width/2 - 150, canvas.height/2);
-        }
+        ctx.font = "16px Arial";
+        ctx.fillText("No characters found. Press Enter to create!", canvas.width/2, canvas.height/2);
     }
 
-    ctx.fillText("Press Enter to play / C to create new", canvas.width/2 - 120, canvas.height - 50);
-
+    ctx.font = "14px Arial";
+    ctx.fillText("Press Enter to play / C to create new", canvas.width/2, canvas.height - 50);
+    ctx.restore();
 }
 
 
@@ -169,18 +187,30 @@ window.addEventListener("keydown", async (e) => {
                     const username = inputFields[0].value;
                     const password = inputFields[1].value;
                     const res = await login(username, password);
+
                     if(res.token) {
                         authToken = res.token;
-                        accountData = res.account;
-                        // Como getPlayer retorna um array de personagens, usamos diretamente
+
+                        // Busca os players do usuário
                         const playerData = await getPlayer(authToken);
 
+                        // Garante que accountData.characters seja um array
+                        accountData = res.account; // dados da conta
                         accountData.characters = Array.isArray(playerData) ? playerData : [];
                         selectedCharacter = 0;
+
+                        if(accountData.characters.length === 0){
+                            // Nenhum personagem encontrado
+                            creatingCharacter = true;
+                        }
+
                         menuState = "characterSelect";
                         draw();
-                        return; // evita que o mesmo Enter continue
-                    } else alert("Login failed");
+                        return;
+                    } else {
+                        alert("Login failed");
+                    }
+
                 } else if(menuState === "register") {
                     const username = inputFields[0].value;
                     const password = inputFields[1].value;
@@ -257,7 +287,8 @@ window.addEventListener("keydown", async (e) => {
                     creatingCharacter = true;
                     newCharacterName = "";
                 } else {
-                    game = new Game(canvas, authToken, selectedCharacter);
+                    const selectedChar = accountData.characters[selectedCharacter];
+                    game = new Game(canvas, authToken, selectedChar);
                     game.start();
                 }
                 break;
@@ -294,37 +325,54 @@ function initRegisterFields() {
 
 function drawRegister() {
     drawBackground();
-drawOverlay();    // depois aplica overlay semi-transparente
+    drawOverlay();    // depois aplica overlay semi-transparente
 
+    ctx.save();
     ctx.fillStyle = "white";
     ctx.font = "24px Arial";
-    ctx.fillText("Register", canvas.width/2 - 40, canvas.height/2 - 120);
+    ctx.textAlign = "center";
+    ctx.fillText("Register", canvas.width/2, canvas.height/2 - 120);
 
+    ctx.font = "14px Arial";
     inputFields.forEach((field, i) => {
         ctx.strokeStyle = i === currentInput ? "yellow" : "white";
+        ctx.lineWidth = 2;
         ctx.strokeRect(field.x, field.y, 200, 30);
         ctx.fillStyle = "white";
-        ctx.fillText(field.value || field.placeholder, field.x + 5, field.y + 22);
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        const txt = field.value.length ? field.value : field.placeholder;
+        ctx.fillText(txt, field.x + 8, field.y + 15);
     });
 
-    ctx.fillText("Press Enter to submit", canvas.width/2 - 80, canvas.height/2 + 60);
+    ctx.textAlign = "center";
+    ctx.fillText("Press Enter to submit", canvas.width/2, canvas.height/2 + 60);
+    ctx.restore();
 }
 let creatingCharacter = false;
 let newCharacterName = "";
 
 function drawCharacterCreate() {
     drawBackground();
-drawOverlay();    // depois aplica overlay semi-transparente
+    drawOverlay();    // depois aplica overlay semi-transparente
 
+    ctx.save();
     ctx.fillStyle = "white";
     ctx.font = "24px Arial";
-    ctx.fillText("Create New Character", canvas.width/2 - 120, canvas.height/2 - 100);
+    ctx.textAlign = "center";
+    ctx.fillText("Create New Character", canvas.width/2, canvas.height/2 - 100);
 
     ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
     ctx.strokeRect(canvas.width/2 - 100, canvas.height/2 - 50, 200, 30);
-    ctx.fillText(newCharacterName || "Character Name", canvas.width/2 - 95, canvas.height/2 - 27);
+    ctx.fillStyle = "white";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(newCharacterName || "Character Name", canvas.width/2 - 95, canvas.height/2 - 35);
 
-    ctx.fillText("Press Enter to create", canvas.width/2 - 80, canvas.height/2 + 50);
+    ctx.textAlign = "center";
+    ctx.fillText("Press Enter to create", canvas.width/2, canvas.height/2 + 50);
+    ctx.restore();
 }
 
 
@@ -337,4 +385,6 @@ window.addEventListener("resize", () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     draw();
+    // garante que, se o jogo estiver ativo, também atualize dimensions
+    if (typeof game === "object" && game?.resizeCanvas) game.resizeCanvas();
 });

@@ -15,17 +15,73 @@ export const TileActions = {
       }
     }
   },
-197: {
-  layer: "overlay",
-  look: () => "Um portal brilhante.",
-  teleportTo: [73, 34, 3],
+  10358: {
+    layer: "ground",
+    look: () => "Escadas para cima",
+    floorUp: 4,
+  },
 
-  idleAnimation: {
-    frames: [197, 198, 199, 197],
-    interval: 600,
-    range: 8 // ativa se player estiver até 3 tiles
-  }
-},
+  455: {
+    layer: "ground",
+    look: () => "Escadas para baixo",
+    floorDown: 3,
+  },
+
+  197: {
+    layer: "overlay",
+    look: () => "Um portal brilhante para a cidade.",
+    teleportTo: [73, 34, 3],  // teletransporta para x=73, y=34, z=3
+    idleAnimation: {
+      frames: [197, 198, 199, 197],
+      interval: 160,
+      range: 20
+    }
+  },
+
+  // Portal para outro local diferente
+  // Use este tile ID na sua matriz quando quiser outro destino
+  200: {
+    layer: "overlay",
+    look: () => "Um portal mágico para a masmorra.",
+    teleportTo: [100, 100, 1],  // teletransporta para x=100, y=100, z=1
+    idleAnimation: {
+      frames: [200, 200],
+      interval: 160,
+      range: 20
+    }
+  },
+
+  201: {
+    layer: "overlay",
+    look: () => "Um portal para a arena.",
+    teleportTo: [50, 50, 2],  // teletransporta para x=50, y=50, z=2
+    idleAnimation: {
+      frames: [201, 201],
+      interval: 160,
+      range: 20
+    }
+  },
+
+  198: {
+    layer: "overlay",
+    look: () => "Escadas para cima",
+    floorUp: 4,
+    idleAnimation: {
+      frames: [198, 198],
+      interval: 200,
+      range: 15
+    }
+  },
+  199: {
+    layer: "overlay",
+    look: () => "Escadas para baixo",
+    floorDown: 3,
+    idleAnimation: {
+      frames: [199, 199],
+      interval: 200,
+      range: 15
+    }
+  },
   50010: {
     layer: "overlay", // baú fica na frente
     look: () => "Um baú antigo.",
