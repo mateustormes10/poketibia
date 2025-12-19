@@ -2,6 +2,7 @@ import { catchPokemonAction } from "../../models/PokemonModel.js";
 import { getPlayer, getNearbyPlayers } from "../state/players.js";
 import { sendError } from "../utils/errorHandler.js";
 
+
 export async function handlePokemonAction(ws, payload) {
     const { pokemonId } = payload;
 
@@ -34,9 +35,15 @@ export async function handlePokemonAction(ws, payload) {
 
     nearbyPlayers.forEach(({ ws: nearbyWs }) => {
         nearbyWs.send(JSON.stringify({
-            action: "pokemon_caught_notify",
-            playerId: player.id,
-            pokemonId
+            action: "pokemon_update",
+            pokemon: {
+                id: result.pokemon.id,
+                name: result.pokemon.name,
+                position: result.pokemon.position,
+                alive: result.pokemon.alive,
+                ownerId: player.id
+            }
         }));
     });
+
 }

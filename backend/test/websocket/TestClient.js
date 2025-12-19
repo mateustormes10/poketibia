@@ -69,6 +69,12 @@ export class TestClient {
         await this.wait(300);
     }
 
+    // <== NOVO MÉTODO
+    async requestAllPokemons() {
+        this.send("request_all_pokemon");
+        await this.wait(300);
+    }
+
     async catchPokemon(pokemonId) {
         this.send("pokemon", { playerId: this.playerId, type: "catch", pokemonId });
         await this.wait(500);

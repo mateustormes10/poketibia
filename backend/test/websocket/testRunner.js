@@ -1,13 +1,16 @@
 import { TestClient } from "./TestClient.js";
 
+
+
+
 const tokens = [
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZ3JvdXBfaWQiOjQsImlhdCI6MTc2NTk5NDMwMiwiZXhwIjoxNzY2MDgwNzAyfQ.81F0TRk1uDKtbYp_cy4f9s0ODNosZIF9fupHFWTe6D4",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MywiZ3JvdXBfaWQiOjEsImlhdCI6MTc2NTkxNzg0OSwiZXhwIjoxNzY2MDA0MjQ5fQ.kZEAepwXvdLrXwQAvYVqz-RaoRe4fSh2SYO_dRd3rc4", // substitua pelo token real do Player2
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwiZ3JvdXBfaWQiOjEsImlhdCI6MTc2NTk4NjAxMywiZXhwIjoxNzY2MDcyNDEzfQ.22-kzokQqZZ_VEkbswtjJxyTXf5bQnm9DVFRwy9exgY", // substitua pelo token real do Player3
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZ3JvdXBfaWQiOjQsImlhdCI6MTc2NjAwMTc4OSwiZXhwIjoxNzY2MDg4MTg5fQ.mLFPInM1arGRlfs78XO4uvWnjHN2jx1gZ63PNrIAujs",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MywiZ3JvdXBfaWQiOjEsImlhdCI6MTc2NjAwMTgwMywiZXhwIjoxNzY2MDg4MjAzfQ.oueW7Q1Ad4cn244DpLRYIzgH9_0JR9UFxVFZi8BDOD4",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwiZ3JvdXBfaWQiOjEsImlhdCI6MTc2NjAwMTgxMywiZXhwIjoxNzY2MDg4MjEzfQ.WPyOKdB0uBd1JV1ttIpRuy53IkzojmFbMIsd2NZssWM",
 ];
 
 (async () => {
-    // Cria os 4 clients
+    // Cria os clients
     const clients = tokens.map((token, index) => new TestClient(`Player${index + 1}`, token));
 
     console.log("=== CONECTANDO WS ===");
@@ -16,51 +19,37 @@ const tokens = [
         await c.auth();
     }
 
-    console.log("\n=== TESTES DE MOVIMENTO, CHAT, POKÉMON E COMBATE ===");
-    // Exemplo de ações para cada player
+    console.log("\n=== TESTE DE MOVIMENTO DE PLAYERS ===");
     for (let i = 0; i < clients.length; i++) {
         const c = clients[i];
-        await c.move(50 + i * 5, 50 + i * 5); // posições diferentes
-        await c.chat(`Olá, eu sou ${c.name}!`);
-        await c.catchPokemon(4); // todos tentam capturar o Pokémon 4
-        if (i < clients.length - 1) {
-            await c.attack(clients[i + 1].playerId); // ataca o próximo player
-        }
+        await c.move(50 + i * 5, 50 + i * 5); // move players para posições diferentes
     }
 
-    console.log("\n=== TESTE DE COLISÃO COM TILE BLOQUEADO (N) ===");
-    await clients[0].move(29, 19); // deve ser negado
+    console.log("\n=== TESTE DE COLISÕES ===");
+    await clients[0].move(29, 19); // tile bloqueado
+    await clients[0].move(15, 15); // tile livre
+    await clients[1].move(50, 50); // colisão com Player1 (se estiver no mesmo tile)
 
-    
-    console.log("\n=== TESTE DE COLISÃO COM TILE LIVRE (S) ===");
-    await clients[0].move(15, 15); // tile S
+    console.log("\n=== TESTE DE CAPTURA DE POKÉMON ===");
+    // Player1 tenta capturar o Pokémon 1
+    await clients[0].catchPokemon(1);
+    // Player2 tenta capturar Pokémon 2
+    await clients[1].catchPokemon(2);
+    // Player3 tenta capturar Pokémon 3
+    await clients[2].catchPokemon(3);
 
-    console.log("\n=== TESTE DE COLISÃO ENTRE PLAYERS ===");
-    await clients[0].move(20, 20); // Player1
-    await clients[1].move(20, 20); // Player2 tenta ir para o mesmo tile
-
-    console.log("\n=== TESTE DE COLISÃO COM POKÉMON ===");
-    await clients[0].move(25, 25); // deve ser negado
-
-
-    // Teste movimento com sprite summonerMale
-await clients[0].move(63, 63, 3, "36204");
-
-// Teste movimento com sprite mageMale
-await clients[1].move(64, 64, 3, "3474");
-
-// Teste movimento com sprite warriorMale
-await clients[2].move(65, 65, 3, "14508");
-
-
-    console.log("\n=== REQUEST ALL PLAYERS ===");
-    // Testa request_all_players para todos
+    console.log("\n=== TESTE DE VISUALIZAÇÃO DE POKÉMON ===");
     for (const c of clients) {
-        await c.requestAllPlayers();
+        await c.requestAllPokemons(); // pega todos os pokémons visíveis
     }
+
+    console.log("\n=== TESTE DE MOVIMENTO COM SPRITES ===");
+    await clients[0].move(63, 63, 3, "36204"); // summonerMale
+    await clients[1].move(64, 64, 3, "3474");  // mageMale
+    await clients[2].move(65, 65, 3, "14508"); // warriorMale
 
     console.log("\n=== TESTE FINALIZADO ===");
     setTimeout(() => {
         clients.forEach(c => c.close());
-    }, 2000);
+    }, 3000);
 })();

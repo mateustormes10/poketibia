@@ -1,0 +1,350 @@
+{
+  "players": [
+    {
+      "id": "player123",
+      "name": "TormesBR",
+      "position": { "x": 240, "y": 240, "z": 3 },
+      "direction": "left",
+      "sprite": "summonerMale",
+      "level": 1,
+      "speed": 1,
+      "pokemonSolto": 1,
+      "pokemons": [
+        { "id": "1", "name": "Pikachu", "x": 238, "y": 340, "direction": "left" },
+        { "id": "2", "name": "Raichu", "x": 239, "y": 340, "direction": "right" }
+      ], 
+      "wildPokemonsNearbyPlayer": [
+          { "id": "wild1", "name": "Pikachu", "x": 238, "y": 340, "direction": "left" },
+          { "id": "wild2", "name": "Diglett", "x": 241, "y": 340, "direction": "up" }
+      ]
+    },
+    
+    {
+      "id": "player145",
+      "name": "Lucas",
+      "position": { "x": 240, "y": 240, "z": 3 },
+      "direction": "left",
+      "sprite": "summonerMale",
+      "level": 1,
+      "speed": 1,
+      "pokemonSolto": 2,
+      "pokemons": [
+        { "id": "1", "name": "Pikachu", "x": 238, "y": 340, "direction": "left" },
+        { "id": "2", "name": "Raichu", "x": 239, "y": 340, "direction": "right" }
+      ], 
+      "wildPokemonsNearbyPlayer": [
+          { "id": "wild1", "name": "Pikachu", "x": 238, "y": 340, "direction": "left" },
+          { "id": "wild2", "name": "Diglett", "x": 241, "y": 340, "direction": "up" }
+      ]
+    }
+  ]
+}
+
+
+
+const gameState = {
+  players: {
+    "player123": {
+      id: "player123",
+      name: "TormesBR",
+      position: { x: 240, y: 240, z: 3 },
+      direction: "left",
+      sprite: "summonerMale",
+      level: 1,
+      speed: 1,
+      pokemonSolto: 1,
+      pokemons: [
+        { id: "p1", name: "Pikachu", x: 238, y: 340, direction: "left" },
+        { id: "p2", name: "Raichu", x: 239, y: 340, direction: "right" },
+        { id: "p3", name: "Charmander", x: 240, y: 340, direction: "up" },
+        { id: "p4", name: "Squirtle", x: 238, y: 340, direction: "left" },
+        { id: "p5", name: "Staryu", x: 239, y: 340, direction: "down" },
+        { id: "p6", name: "Charizard", x: 240, y: 340, direction: "left" }
+      ],
+      wildPokemonsNearbyPlayer: ["wild1", "wild2"] // apenas referência aos IDs do map wildPokemons
+    },
+    "player145": {
+      id: "player145",
+      name: "Lucas",
+      position: { x: 245, y: 240, z: 3 },
+      direction: "up",
+      sprite: "warriorMale",
+      level: 1,
+      speed: 1,
+      pokemonSolto: 2,
+      pokemons: [
+        { id: "p1", name: "Pikachu", x: 238, y: 340, direction: "left" },
+        { id: "p2", name: "Raichu", x: 239, y: 340, direction: "right" },
+        { id: "p3", name: "Charmander", x: 240, y: 340, direction: "up" },
+        { id: "p4", name: "Squirtle", x: 238, y: 340, direction: "left" },
+        { id: "p5", name: "Staryu", x: 239, y: 340, direction: "down" },
+        { id: "p6", name: "Charizard", x: 240, y: 340, direction: "left" }
+      ],
+      wildPokemonsNearbyPlayer: ["wild1", "wild2"]
+    }
+  },
+
+  wildPokemons: {
+    "wild1": {
+      id: "wild1",
+      name: "Pikachu",
+      x: 238,
+      y: 340,
+      direction: "left",
+      hp: 100,
+      level: 1
+    },
+    "wild2": {
+      id: "wild2",
+      name: "Diglett",
+      x: 241,
+      y: 340,
+      direction: "up",
+      hp: 80,
+      level: 1
+    },
+    "wild3": {
+      id: "wild3",
+      name: "Dugtrio",
+      x: 242,
+      y: 340,
+      direction: "up",
+      hp: 150,
+      level: 2
+    }
+  },
+  maps: []
+};
+
+----------------------------------------------------
+
+com base nesse json "{
+  "players": [
+    {
+      "id": "player123",
+      "name": "TormesBR",
+      "position": { "x": 240, "y": 240, "z": 3 },
+      "direction": "left",
+      "sprite": "summonerMale",
+      "level": 1,
+      "speed": 1,
+      "pokemonSolto": 1,
+      "pokemons": [
+        { "id": "1", "name": "Pikachu", "x": 238, "y": 340, "direction": "left" },
+        { "id": "2", "name": "Raichu", "x": 239, "y": 340, "direction": "right" }
+      ], 
+      "wildPokemonsNearbyPlayer": [
+          { "id": "wild1", "name": "Pikachu", "x": 238, "y": 340, "direction": "left" },
+          { "id": "wild2", "name": "Diglett", "x": 241, "y": 340, "direction": "up" }
+      ]
+    },
+    
+    {
+      "id": "player145",
+      "name": "Lucas",
+      "position": { "x": 240, "y": 240, "z": 3 },
+      "direction": "left",
+      "sprite": "summonerMale",
+      "level": 1,
+      "speed": 1,
+      "pokemonSolto": 2,
+      "pokemons": [
+        { "id": "1", "name": "Pikachu", "x": 238, "y": 340, "direction": "left" },
+        { "id": "2", "name": "Raichu", "x": 239, "y": 340, "direction": "right" }
+      ], 
+      "wildPokemonsNearbyPlayer": [
+          { "id": "wild1", "name": "Pikachu", "x": 238, "y": 340, "direction": "left" },
+          { "id": "wild2", "name": "Diglett", "x": 241, "y": 340, "direction": "up" }
+      ]
+    }
+  ]
+}
+
+
+
+const gameState = {
+  players: {
+    "player123": {
+      id: "player123",
+      name: "TormesBR",
+      position: { x: 240, y: 240, z: 3 },
+      direction: "left",
+      sprite: "summonerMale",
+      level: 1,
+      speed: 1,
+      pokemonSolto: 1,
+      pokemons: [
+        { id: "p1", name: "Pikachu", x: 238, y: 340, direction: "left" },
+        { id: "p2", name: "Raichu", x: 239, y: 340, direction: "right" },
+        { id: "p3", name: "Charmander", x: 240, y: 340, direction: "up" },
+        { id: "p4", name: "Squirtle", x: 238, y: 340, direction: "left" },
+        { id: "p5", name: "Staryu", x: 239, y: 340, direction: "down" },
+        { id: "p6", name: "Charizard", x: 240, y: 340, direction: "left" }
+      ],
+      wildPokemonsNearbyPlayer: ["wild1", "wild2"] // apenas referência aos IDs do map wildPokemons
+    },
+    "player145": {
+      id: "player145",
+      name: "Lucas",
+      position: { x: 245, y: 240, z: 3 },
+      direction: "up",
+      sprite: "warriorMale",
+      level: 1,
+      speed: 1,
+      pokemonSolto: 2,
+      pokemons: [
+        { id: "p1", name: "Pikachu", x: 238, y: 340, direction: "left" },
+        { id: "p2", name: "Raichu", x: 239, y: 340, direction: "right" },
+        { id: "p3", name: "Charmander", x: 240, y: 340, direction: "up" },
+        { id: "p4", name: "Squirtle", x: 238, y: 340, direction: "left" },
+        { id: "p5", name: "Staryu", x: 239, y: 340, direction: "down" },
+        { id: "p6", name: "Charizard", x: 240, y: 340, direction: "left" }
+      ],
+      wildPokemonsNearbyPlayer: ["wild1", "wild2"]
+    }
+  },
+
+  wildPokemons: {
+    "wild1": {
+      id: "wild1",
+      name: "Pikachu",
+      x: 238,
+      y: 340,
+      direction: "left",
+      hp: 100,
+      level: 1
+    },
+    "wild2": {
+      id: "wild2",
+      name: "Diglett",
+      x: 241,
+      y: 340,
+      direction: "up",
+      hp: 80,
+      level: 1
+    },
+    "wild3": {
+      id: "wild3",
+      name: "Dugtrio",
+      x: 242,
+      y: 340,
+      direction: "up",
+      hp: 150,
+      level: 2
+    }
+  }
+};
+", preciso de um backend que gerencie um gameState já inicia alguns pra teste em memoria local com esse valores , onde vou querer uma funcao de id por player que irá retornar os dados, o player poderá andar pelo mapa assets/map_z1.txt até map_z5.txt , uma matriz de 500x500 com 5 andares , podera soltar o pokemon que tambem vai andar no mapa e é isso: cria a estrutura e a lógica no backend que poderá receber e enviar os dados tudo junto a comunicação será igual esse json que te enviei {
+  "players": [
+    {
+      "id": "player123",
+      "name": "TormesBR",
+      "position": { "x": 240, "y": 240, "z": 3 },
+      "direction": "left",
+      "sprite": "summonerMale",
+      "level": 1,
+      "speed": 1,
+      "pokemonSolto": 1,
+      "pokemons": [
+        { "id": "1", "name": "Pikachu", "x": 238, "y": 340, "direction": "left" },
+        { "id": "2", "name": "Raichu", "x": 239, "y": 340, "direction": "right" }
+      ], 
+      "wildPokemonsNearbyPlayer": [
+          { "id": "wild1", "name": "Pikachu", "x": 238, "y": 340, "direction": "left" },
+          { "id": "wild2", "name": "Diglett", "x": 241, "y": 340, "direction": "up" }
+      ]
+    },
+    
+    {
+      "id": "player145",
+      "name": "Lucas",
+      "position": { "x": 240, "y": 240, "z": 3 },
+      "direction": "left",
+      "sprite": "summonerMale",
+      "level": 1,
+      "speed": 1,
+      "pokemonSolto": 2,
+      "pokemons": [
+        { "id": "1", "name": "Pikachu", "x": 238, "y": 340, "direction": "left" },
+        { "id": "2", "name": "Raichu", "x": 239, "y": 340, "direction": "right" }
+      ], 
+      "wildPokemonsNearbyPlayer": [
+          { "id": "wild1", "name": "Pikachu", "x": 238, "y": 340, "direction": "left" },
+          { "id": "wild2", "name": "Diglett", "x": 241, "y": 340, "direction": "up" }
+      ]
+    }
+  ]
+},  este será o gravado em memoria "
+const gameState = {
+  players: {
+    "player123": {
+      id: "player123",
+      name: "TormesBR",
+      position: { x: 240, y: 240, z: 3 },
+      direction: "left",
+      sprite: "summonerMale",
+      level: 1,
+      speed: 1,
+      pokemonSolto: 1,
+      pokemons: [
+        { id: "p1", name: "Pikachu", x: 238, y: 340, direction: "left" },
+        { id: "p2", name: "Raichu", x: 239, y: 340, direction: "right" },
+        { id: "p3", name: "Charmander", x: 240, y: 340, direction: "up" },
+        { id: "p4", name: "Squirtle", x: 238, y: 340, direction: "left" },
+        { id: "p5", name: "Staryu", x: 239, y: 340, direction: "down" },
+        { id: "p6", name: "Charizard", x: 240, y: 340, direction: "left" }
+      ],
+      wildPokemonsNearbyPlayer: ["wild1", "wild2"] // apenas referência aos IDs do map wildPokemons
+    },
+    "player145": {
+      id: "player145",
+      name: "Lucas",
+      position: { x: 245, y: 240, z: 3 },
+      direction: "up",
+      sprite: "warriorMale",
+      level: 1,
+      speed: 1,
+      pokemonSolto: 2,
+      pokemons: [
+        { id: "p1", name: "Pikachu", x: 238, y: 340, direction: "left" },
+        { id: "p2", name: "Raichu", x: 239, y: 340, direction: "right" },
+        { id: "p3", name: "Charmander", x: 240, y: 340, direction: "up" },
+        { id: "p4", name: "Squirtle", x: 238, y: 340, direction: "left" },
+        { id: "p5", name: "Staryu", x: 239, y: 340, direction: "down" },
+        { id: "p6", name: "Charizard", x: 240, y: 340, direction: "left" }
+      ],
+      wildPokemonsNearbyPlayer: ["wild1", "wild2"]
+    }
+  },
+
+  wildPokemons: {
+    "wild1": {
+      id: "wild1",
+      name: "Pikachu",
+      x: 238,
+      y: 340,
+      direction: "left",
+      hp: 100,
+      level: 1
+    },
+    "wild2": {
+      id: "wild2",
+      name: "Diglett",
+      x: 241,
+      y: 340,
+      direction: "up",
+      hp: 80,
+      level: 1
+    },
+    "wild3": {
+      id: "wild3",
+      name: "Dugtrio",
+      x: 242,
+      y: 340,
+      direction: "up",
+      hp: 150,
+      level: 2
+    }
+  },
+  maps: []
+};", onde terão serviços que irá verificar ele, cria pra mim os códigos

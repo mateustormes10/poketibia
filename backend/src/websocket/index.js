@@ -5,9 +5,12 @@ import { handleChat } from "./handlers/chat.js";
 import { handlePokemonAction } from "./handlers/pokemon.js";
 import { handleCombat } from "./handlers/combat.js";
 import { getAllPlayers, registerPlayer, removePlayer } from "./state/players.js";
+import { getAllPokemons } from "./state/pokemons.js";
+import { initTestPokemons } from "./state/spawn.js";
 
 const wss = new WebSocketServer({ port: 8080 });
-
+// Inicializa alguns Pokémons para teste
+initTestPokemons();
 wss.on("connection", (ws) => {
     console.log("[WS] Novo cliente conectado");
 
@@ -31,12 +34,29 @@ wss.on("connection", (ws) => {
             case "chat":
                 await handleChat(ws, data);
                 break;
-            case "pokemon":
+            case "pokemonMovement":
                 await handlePokemonAction(ws, data);
                 break;
             case "combat":
                 await handleCombat(ws, data);
                 break;
+            case "request_all_pokemon":
+                const allPokemonsObj = {};
+                for (const pokemon of getAllPokemons()) {
+                    allPokemonsObj[pokemon.id] = {
+                        id: pokemon.id,
+                        name: pokemon.name,
+                        position: pokemon.position,
+                        alive: pokemon.alive,
+                        ownerId: pokemon.ownerId ?? null // se o Pokémon pertencer a um player
+                    };
+                }
+                ws.send(JSON.stringify({
+                    action: "all_pokemons",
+                    pokemons: allPokemonsObj
+                }));
+                break;
+
             case "request_all_players":
                 const allPlayersObj = {};
                 for (const player of getAllPlayers().values()) {

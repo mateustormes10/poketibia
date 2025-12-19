@@ -12,7 +12,7 @@ import adminRoutes from "./routes/admin.js";
 import serverRoutes from "./routes/server.js";
 
 
-import "./websocket/index.js";
+import "./backendNovo/server.js";
 
 const app = express();
 const PORT = 3000;

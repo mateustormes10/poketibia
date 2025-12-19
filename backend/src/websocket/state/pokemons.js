@@ -1,11 +1,16 @@
+
 const pokemons = new Map();
 // id -> { id, name, position, alive }
 
 let nextId = 1;
 
 export function registerPokemon(pokemon) {
+    if (!pokemon.id) {
+        pokemon.id = nextId++;
+    }
     pokemons.set(pokemon.id, pokemon);
 }
+
 
 export function removePokemon(id) {
     pokemons.delete(id);

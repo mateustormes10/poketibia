@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { getPlayerById } from "../../models/PlayerModel.js";
-import { registerPlayer } from "../state/players.js";
+import { registerPlayer, getPlayerById as getPlayerByIdFromState } from "../state/players.js";
+import { getAllPokemons } from "../state/pokemons.js";
 
 export async function handleAuth(ws, data) {
     try {
@@ -28,12 +29,46 @@ export async function handleAuth(ws, data) {
 
         registerPlayer(ws, player);
         console.log("[Auth] Player registrado:", player.id, player.name);
+        
+        // Busca o player registrado no estado do servidor
+        const playerState = getPlayerByIdFromState(player.id);
+        
+        // Busca pokémons selvagens próximos (range de 20 tiles)
+        const wildPokemonsNearby = [];
+        if (playerState) {
+            const range = 20;
+            for (const pokemon of getAllPokemons()) {
+                // Ignora pokémons que pertencem a algum player (ownerId existe)
+                if (pokemon.ownerId) continue;
+                
+                // Verifica se está no mesmo andar
+                if (pokemon.position.z !== playerState.position.z) continue;
+                
+                // Calcula distância
+                const dx = Math.abs(pokemon.position.x - playerState.position.x);
+                const dy = Math.abs(pokemon.position.y - playerState.position.y);
+                
+                if (Math.max(dx, dy) <= range) {
+                    wildPokemonsNearby.push({
+                        id: pokemon.id,
+                        name: pokemon.name,
+                        position: pokemon.position,
+                        alive: pokemon.alive,
+                        sprite: pokemon.sprite || pokemon.name.toLowerCase()
+                    });
+                }
+            }
+        }
+        
+        console.log(`[Auth] Enviando ${wildPokemonsNearby.length} pokémons selvagens para ${player.name}`);
+        
         ws.send(JSON.stringify({
             action: "auth_success",
             player: {
                 id: player.id,
                 name: player.name,
-                level: player.level
+                level: player.level,
+                wildPokemonsNearbyPlayer: wildPokemonsNearby
             }
         }));
 

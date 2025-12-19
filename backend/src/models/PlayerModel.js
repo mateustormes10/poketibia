@@ -9,12 +9,54 @@ export async function getPlayerById(id) {
 }
 
 export async function getPlayerByAccountId(accountId) {
-    const rows = await query(
-        "SELECT * FROM players WHERE account_id = ?",
+    // Busca todos os players da conta
+    const players = await query(
+        `SELECT * FROM players WHERE account_id = ?`,
         [accountId]
     );
-    return rows || null;
+
+    if (!players || players.length === 0) return [];
+
+    // Para cada player, busca seus pokemons ativos
+    for (const player of players) {
+        const activePokemons = await query(
+            `SELECT 
+                pap.slot, 
+                pap.direction, 
+                pap.nickname,
+                pap.x,
+                pap.y,
+                p.id AS pokemonId,
+                p.name,
+                p.hp,
+                p.max_hp,
+                p.max_mana,
+                p.aggressive,
+                p.speed,
+                p.attack_base,
+                p.defense_base,
+                p.elements,
+                p.weak_elements,
+                p.strong_elements,
+                p.skills,
+                p.sprite_up,
+                p.sprite_down,
+                p.sprite_left,
+                p.sprite_right
+             FROM player_active_pokemons pap
+             LEFT JOIN pokemons p ON p.id = pap.pokemon_id
+             WHERE pap.player_id = ?`,
+            [player.id]
+        );
+
+        player.activePokemons = activePokemons || [];
+    }
+
+    return players;
 }
+
+
+
 
 export async function getPlayerByName(name) {
     const rows = await query(
@@ -73,19 +115,22 @@ export async function createPlayer({
     return result.insertId;
 }
 
-export async function updatePlayerPosition(id, x, y) {
+
+export async function updatePlayerPosition(id, x, y, z) {
     await query(
-        "UPDATE players SET posx = ?, posy = ? WHERE id = ?",
-        [x, y, id]
+        `UPDATE players
+         SET posx = ?, posy = ?, posz = ?
+         WHERE id = ?`,
+        [x, y, z, id]
     );
 }
 
-export async function updatePlayerPositionAndSprite(id, x, y, z, spriteId = 'default') {
+export async function updatePlayerSprite(id, spriteId = 'default') {
     await query(
         `UPDATE players
-         SET posx = ?, posy = ?, posz = ?, lookaddons = ?
+         SET lookaddons = ?
          WHERE id = ?`,
-        [x, y, z, spriteId, id]
+        [spriteId, id]
     );
 }
 
